@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ระบบเบิกจ่ายสินค้าคลัง</title> 
+<title>ระบบเบิกจ่ายสินค้าคลัง</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
 function deleteReq(id) {
   if (!confirm('ลบใบเบิก ' + id + ' ออกจากระบบ?')) return;
@@ -746,11 +746,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="form-grid">
       <div class="form-group">
         <label>ชื่อ-นามสกุล</label>
-        <div class="field-locked"><input id="f-name" type="text" placeholder="กรอกชื่อ-นามสกุล"></div>
+        <input id="f-name" type="text" placeholder="กรอกชื่อ-นามสกุล">
       </div>
       <div class="form-group">
         <label>รหัสพนักงาน</label>
-        <div class="field-locked"><input id="f-emp" type="text" placeholder="รหัสพนักงาน"></div>
+        <input id="f-emp" type="text" placeholder="รหัสพนักงาน">
       </div>
     </div>
     <div class="form-grid">
@@ -1102,13 +1102,37 @@ let currentUser = null;
 // ═══════════════════════════════════════
 //  LOCALSTORAGE
 // ═══════════════════════════════════════
+const _bc = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('srp_sync') : null;
 function save() {
   try {
     localStorage.setItem('srp_users',    JSON.stringify(users));
     localStorage.setItem('srp_stock',    JSON.stringify(stockData));
     localStorage.setItem('srp_requests', JSON.stringify(requests));
     localStorage.setItem('srp_counter',  reqCounter);
+    if (_bc) _bc.postMessage({ type:'sync' });
   } catch(e) {}
+}
+
+// sync รับข้อมูลจาก tab อื่น
+if (_bc) {
+  _bc.onmessage = function(e) {
+    if (e.data && e.data.type === 'sync') {
+      try {
+        users      = JSON.parse(localStorage.getItem('srp_users'))    || users;
+        stockData  = JSON.parse(localStorage.getItem('srp_stock'))    || stockData;
+        requests   = JSON.parse(localStorage.getItem('srp_requests')) || requests;
+        reqCounter = parseInt(localStorage.getItem('srp_counter'))    || reqCounter;
+        if (currentUser) {
+          updateBadge();
+          const active = document.querySelector('.section.active');
+          if (active && active.id === 'sec-approve') renderApprove();
+          if (active && active.id === 'sec-dashboard') renderDashboard();
+          if (active && active.id === 'sec-stock') renderStock();
+          if (active && active.id === 'sec-history') renderHistory();
+        }
+      } catch(e) {}
+    }
+  };
 }
 function load() {
   try {
@@ -1156,6 +1180,23 @@ function doLogout() {
 //  INIT
 // ═══════════════════════════════════════
 function initApp() {
+  // fallback sync via storage event (cross-tab)
+  window.addEventListener('storage', function(e) {
+    if (e.key && e.key.startsWith('srp_') && currentUser) {
+      try {
+        users      = JSON.parse(localStorage.getItem('srp_users'))    || users;
+        stockData  = JSON.parse(localStorage.getItem('srp_stock'))    || stockData;
+        requests   = JSON.parse(localStorage.getItem('srp_requests')) || requests;
+        reqCounter = parseInt(localStorage.getItem('srp_counter'))    || reqCounter;
+        updateBadge();
+        const active = document.querySelector('.section.active');
+        if (active && active.id === 'sec-approve') renderApprove();
+        if (active && active.id === 'sec-dashboard') renderDashboard();
+        if (active && active.id === 'sec-stock') renderStock();
+        if (active && active.id === 'sec-history') renderHistory();
+      } catch(err) {}
+    }
+  });
   const p = PERMS[currentUser.role];
   // header
   document.getElementById('hd-co').textContent   = CO_NAME;
@@ -1351,7 +1392,7 @@ function submitRequest() {
   const today = new Date().toISOString().split('T')[0];
   requests.push({
     id, userId: currentUser.id,
-    requester: currentUser.name, emp: currentUser.emp || '',
+    requester: document.getElementById('f-name').value || currentUser.name, emp: document.getElementById('f-emp').value || currentUser.emp || '',
     dept: currentUser.dept, type: document.getElementById('f-type').value,
     urgent: document.getElementById('f-urgent').value,
     date: document.getElementById('f-date').value || today,
