@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบเบิกจ่ายสินค้าคลัง</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f6fa;--border:#e4e7ef;--primary:#2563eb;--text:#0d0f12;--muted:#6b7280;--red:#dc2626;--green:#16a34a;--yellow:#ca8a04;--radius:12px;--shadow:0 1px 4px rgba(0,0,0,.08)}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+#screen-login{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1e3a8a,#2563eb,#3b82f6)}
+.login-box{background:#fff;border-radius:20px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo .ico{width:56px;height:56px;background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.login-logo .co{font-size:17px;font-weight:700}
+.login-logo .sub{font-size:13px;color:#6b7280;margin-top:4px}
+.login-err{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px;display:none}
+.login-err.show{display:block}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+.form-group input{width:100%;padding:10px 14px;border:1.5px solid #e4e7ef;border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.form-group input:focus{border-color:#2563eb}
+.btn-login{width:100%;padding:12px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+.login-hint{margin-top:16px;background:#f0f9ff;border-radius:8px;padding:10px 14px;font-size:12px;color:#6b7280;line-height:1.8}
+#app{display:none}
+#app-header{background:#fff;border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.hd-left{display:flex;align-items:center;gap:12px}
+.hd-ico{width:36px;height:36px;background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.hd-co{font-size:15px;font-weight:700}.hd-sub{font-size:11px;color:var(--muted)}
+.hd-right{display:flex;align-items:center;gap:12px}
+.hd-date{font-size:13px;color:var(--muted)}
+.hd-user{display:flex;align-items:center;gap:8px;font-size:13px}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#6366f1);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
+.btn-logout{padding:6px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+#app-nav{background:#fff;border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:4px;overflow-x:auto}
+.nav-btn{display:flex;align-items:center;gap:7px;padding:12px 14px;border:none;background:none;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;white-space:nowrap;font-family:inherit}
+.nav-btn:hover{color:var(--primary)}.nav-btn.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.nav-btn svg{width:16px;height:16px;flex-shrink:0}
+.badge{background:#dc2626;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center}
+#app-main{padding:24px;max-width:1200px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.page-title{font-size:20px;font-weight:700;margin-bottom:20px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.stat-card .label{font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500}
+.stat-card .value{font-size:28px;font-weight:700}
+.stat-blue .value{color:var(--primary)}.stat-yellow .value{color:var(--yellow)}.stat-green .value{color:var(--green)}.stat-red .value{color:var(--red)}
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;margin-bottom:20px}
+.card-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.card-head h3{font-size:15px;font-weight:600}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f8f9fc;padding:10px 14px;text-align:left;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid #f1f3f9;vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:#f8f9fc}
+.empty-row td{text-align:center;color:var(--muted);padding:32px}
+.status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.st-pending{background:#fef9c3;color:#a16207}.st-approved{background:#dcfce7;color:#15803d}
+.st-rejected{background:#fee2e2;color:#b91c1c}.st-issued{background:#dbeafe;color:#1d4ed8}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+.btn-primary{background:var(--primary);color:#fff}.btn-success{background:#16a34a;color:#fff}
+.btn-danger{background:#dc2626;color:#fff}.btn-ghost{background:#f1f5f9;color:var(--text)}
+.btn-sm{padding:5px 10px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px}
+.form-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);padding:24px;margin-bottom:20px}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px}
+.f-group{display:flex;flex-direction:column;gap:6px}
+.f-group label{font-size:12px;font-weight:600;color:#374151}
+.f-group input,.f-group select,.f-group textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff}
+.f-group input:focus,.f-group select:focus,.f-group textarea:focus{border-color:var(--primary)}
+.f-group textarea{resize:vertical;min-height:80px}
+.items-tbl{width:100%;border-collapse:collapse;margin-top:8px}
+.items-tbl th{background:#f8f9fc;padding:8px 10px;font-size:12px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)}
+.items-tbl td{padding:6px 8px;border-bottom:1px solid #f1f3f9}
+.items-tbl input,.items-tbl select{padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:100%;outline:none}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:#fff;border-radius:16px;padding:28px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:20px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+#toasts{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.15);animation:slideIn .3s ease}
+.toast-success{background:#16a34a;color:#fff}.toast-error{background:#dc2626;color:#fff}.toast-info{background:#2563eb;color:#fff}
+@keyframes slideIn{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+.stock-low{color:var(--red);font-weight:600}.stock-ok{color:var(--green)}
+@media(max-width:600px){#app-main{padding:16px}.stat-grid{grid-template-columns:1fr 1fr}.form-row{grid-template-columns:1fr}.login-box{padding:32px 24px}}
+</style>
+</head>
+<body>
+
+<div id="screen-login">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="ico"><svg width="28" height="28" fill="none" viewBox="0 0 28 28"><path d="M7 9h14M7 14h14M7 19h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="co">บริษัท ตัวอย่าง จำกัด</div>
+      <div class="sub">ระบบเบิกจ่ายสินค้าคลัง</div>
+    </div>
+    <div class="login-err" id="login-err">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+    <div class="form-group"><label>ชื่อผู้ใช้ (Username)</label><input id="l-user" type="text" placeholder="username" autocomplete="username"></div>
+    <div class="form-group"><label>รหัสผ่าน</label><input id="l-pass" type="password" placeholder="รหัสผ่าน" autocomplete="current-password"></div>
+    <button class="btn-login" id="btn-login">เข้าสู่ระบบ</button>
+    <div class="login-hint"><strong>ข้อมูลทดสอบ:</strong><br>ผู้ดูแล: admin / 1234 &nbsp;|&nbsp; ผู้จัดการ: manager / 1234<br>คลังสินค้า: warehouse / 1234 &nbsp;|&nbsp; พนักงาน: staff / 1234</div>
+  </div>
+</div>
+
+<div id="app">
+  <header id="app-header">
+    <div class="hd-left">
+      <div class="hd-ico"><svg width="18" height="18" fill="none" viewBox="0 0 28 28"><path d="M7 9h14M7 14h14M7 19h10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></div>
+      <div><div class="hd-co">บริษัท ตัวอย่าง จำกัด</div><div class="hd-sub">Store Requisition System</div></div>
+    </div>
+    <div class="hd-right">
+      <div class="hd-date" id="hd-date"></div>
+      <div class="hd-user">
+        <div class="avatar" id="hd-avatar">A</div>
+        <div><div style="font-weight:600;font-size:13px" id="hd-uname"></div><div style="font-size:11px;color:var(--muted)" id="hd-role"></div></div>
+      </div>
+      <button class="btn-logout" id="btn-logout">ออกจากระบบ</button>
+    </div>
+  </header>
+
+  <nav id="app-nav">
+    <button class="nav-btn" id="nav-dashboard"><svg viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>ภาพรวม</button>
+    <button class="nav-btn" id="nav-request"><svg viewBox="0 0 20 20" fill="none"><path d="M4 6h12M4 10h12M4 14h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="14" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 14h3M16 12.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>สร้างใบเบิก</button>
+    <button class="nav-btn" id="nav-approve"><svg viewBox="0 0 20 20" fill="none"><path d="M5 10l3.5 3.5L15 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/></svg>อนุมัติใบเบิก<span class="badge" id="pending-badge" style="display:none">0</span></button>
+    <button class="nav-btn" id="nav-stock"><svg viewBox="0 0 20 20" fill="none"><rect x="2" y="10" width="16" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M5 10V6a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>จัดการสต็อก</button>
+    <button class="nav-btn" id="nav-report"><svg viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M6 14v-3M10 14V9M14 14V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>รายงาน</button>
+    <button class="nav-btn" id="nav-history"><svg viewBox="0 0 20 20" fill="none"><path d="M3 10a7 7 0 1 0 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3 4v6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 7v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>ประวัติทั้งหมด</button>
+    <button class="nav-btn" id="nav-users"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>จัดการผู้ใช้</button>
+  </nav>
+
+  <main id="app-main">
+    <div class="page" id="page-dashboard">
+      <div class="page-title">ภาพรวมระบบ</div>
+      <div class="stat-grid" id="dash-stats"></div>
+      <div class="card"><div class="card-head"><h3>ใบเบิกล่าสุด</h3></div><div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>ผู้เบิก</th><th>แผนก</th><th>วันที่</th><th>สถานะ</th></tr></thead><tbody id="dash-recent"></tbody></table></div></div>
+      <div class="card"><div class="card-head"><h3>สต็อกต่ำกว่าขั้นต่ำ</h3></div><div class="tbl-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>คงเหลือ</th><th>ขั้นต่ำ</th></tr></thead><tbody id="dash-lowstock"></tbody></table></div></div>
+    </div>
+
+    <div class="page" id="page-request">
+      <div class="page-title">สร้างใบเบิกสินค้า</div>
+      <div class="form-card">
+        <div class="form-row">
+          <div class="f-group"><label>ชื่อผู้เบิก</label><input id="req-name" type="text"></div>
+          <div class="f-group"><label>แผนก</label><select id="req-dept"><option value="">-- เลือกแผนก --</option><option>QC</option><option>MDB</option><option>TSR</option><option>HP</option><option>HR</option><option>Admin</option><option>Store</option><option>RD</option><option>Weight</option><option>Purchase</option><option>Shipping</option><option>Account</option><option>IT</option></select></div>
+          <div class="f-group"><label>ประเภทการเบิก</label><select id="req-type"><option>เบิกใช้ประจำ</option><option>เบิกฉุกเฉิน</option><option>เบิกซ่อม</option><option>เบิกโปรเจกต์</option></select></div>
+        </div>
+        <div class="f-group" style="margin-bottom:16px"><label>หมายเหตุ</label><textarea id="req-note" placeholder="ระบุวัตถุประสงค์การเบิก..."></textarea></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><label style="font-size:13px;font-weight:600">รายการสินค้า</label><button class="btn btn-ghost btn-sm" id="btn-add-row">+ เพิ่มรายการ</button></div>
+        <div class="tbl-wrap"><table class="items-tbl"><thead><tr><th>สินค้า</th><th>ชื่อ</th><th>หน่วย</th><th>จำนวน</th><th>คงเหลือ</th><th></th></tr></thead><tbody id="req-items-body"></tbody></table></div>
+        <div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" id="btn-clear-req">ล้างข้อมูล</button><button class="btn btn-primary" id="btn-submit-req">ส่งใบเบิก</button></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-approve">
+      <div class="page-title">อนุมัติใบเบิก</div>
+      <div class="card"><div class="card-head"><h3>รอดำเนินการ</h3><button class="btn btn-ghost btn-sm" id="btn-refresh-approve">รีเฟรช</button></div><div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>ผู้เบิก</th><th>แผนก</th><th>ประเภท</th><th>จำนวนรายการ</th><th>วันที่</th><th>การดำเนินการ</th></tr></thead><tbody id="approve-body"></tbody></table></div></div>
+    </div>
+
+    <div class="page" id="page-stock">
+      <div class="page-title">จัดการสต็อกสินค้า</div>
+      <div class="card">
+        <div class="card-head"><h3>รายการสินค้าทั้งหมด</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="stock-search" type="text" placeholder="ค้นหาสินค้า..." style="padding:6px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none;width:200px"><button class="btn btn-primary btn-sm" id="btn-add-product">+ เพิ่มสินค้า</button><button class="btn btn-success btn-sm" id="btn-receive">รับสินค้าเข้า</button></div></div>
+        <div class="tbl-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>หมวดหมู่</th><th>หน่วย</th><th>คงเหลือ</th><th>ขั้นต่ำ</th><th>สถานะ</th></tr></thead><tbody id="stock-body"></tbody></table></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-report">
+      <div class="page-title">รายงานการเบิกจ่าย</div>
+      <div class="form-card" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap"><div class="f-group"><label>เดือน</label><input id="rpt-month" type="month"></div><button class="btn btn-primary" id="btn-load-report">ดูรายงาน</button></div>
+      <div class="stat-grid" id="rpt-stats"></div>
+      <div class="card"><div class="card-head"><h3>สรุปรายการเบิกประจำเดือน</h3></div><div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>ผู้เบิก</th><th>แผนก</th><th>ประเภท</th><th>สถานะ</th><th>วันที่</th></tr></thead><tbody id="rpt-body"></tbody></table></div></div>
+      <div class="card"><div class="card-head"><h3>Top 10 สินค้าเบิกมากสุด</h3></div><div class="tbl-wrap"><table><thead><tr><th>อันดับ</th><th>ชื่อสินค้า</th><th>จำนวนครั้ง</th><th>จำนวนรวม</th></tr></thead><tbody id="rpt-top-body"></tbody></table></div></div>
+    </div>
+
+    <div class="page" id="page-history">
+      <div class="page-title">ประวัติใบเบิกทั้งหมด</div>
+      <div class="form-card" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap"><div class="f-group"><label>ค้นหา</label><input id="hist-q" type="text" placeholder="เลขที่ / ผู้เบิก / แผนก..."></div><div class="f-group"><label>สถานะ</label><select id="hist-status"><option value="">ทั้งหมด</option><option value="pending">รอพิจารณา</option><option value="approved">อนุมัติ</option><option value="rejected">ปฏิเสธ</option><option value="issued">จ่ายแล้ว</option></select></div><button class="btn btn-primary" id="btn-search-hist">ค้นหา</button></div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>ผู้เบิก</th><th>แผนก</th><th>ประเภท</th><th>สถานะ</th><th>วันที่</th><th></th></tr></thead><tbody id="history-body"></tbody></table></div></div>
+    </div>
+
+    <div class="page" id="page-users">
+      <div class="page-title">จัดการผู้ใช้งาน</div>
+      <div class="card"><div class="card-head"><h3>รายชื่อผู้ใช้</h3><button class="btn btn-primary btn-sm" id="btn-add-user">+ เพิ่มผู้ใช้</button></div><div class="tbl-wrap"><table><thead><tr><th>Username</th><th>ชื่อ-นามสกุล</th><th>บทบาท</th><th>แผนก</th><th>สถานะ</th><th>การดำเนินการ</th></tr></thead><tbody id="users-body"></tbody></table></div></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-bg" id="modal-view" style="display:none"><div class="modal-box" style="max-width:680px"><div class="modal-title">รายละเอียดใบเบิก</div><div id="modal-view-content"></div><div class="modal-actions" id="modal-view-actions"><button class="btn btn-ghost" id="btn-close-view">ปิด</button></div></div></div>
+
+<div class="modal-bg" id="modal-add-product" style="display:none"><div class="modal-box"><div class="modal-title">เพิ่มสินค้าใหม่</div><div class="form-row"><div class="f-group"><label>รหัสสินค้า</label><input id="ap-code" type="text"></div><div class="f-group"><label>ชื่อสินค้า</label><input id="ap-name" type="text"></div></div><div class="form-row"><div class="f-group"><label>หมวดหมู่</label><select id="ap-cat"><option>เครื่องเขียน</option><option>อุปกรณ์สำนักงาน</option><option>อุปกรณ์ IT</option><option>วัสดุสิ้นเปลือง</option><option>อุปกรณ์ทำความสะอาด</option><option>อื่นๆ</option></select></div><div class="f-group"><label>หน่วย</label><input id="ap-unit" type="text" placeholder="ชิ้น / กล่อง / แผ่น..."></div></div><div class="form-row"><div class="f-group"><label>จำนวนเริ่มต้น</label><input id="ap-qty" type="number" value="0" min="0"></div><div class="f-group"><label>สต็อกขั้นต่ำ</label><input id="ap-min" type="number" value="5" min="0"></div></div><div class="modal-actions"><button class="btn btn-ghost" id="btn-cancel-product">ยกเลิก</button><button class="btn btn-primary" id="btn-save-product">บันทึก</button></div></div></div>
+
+<div class="modal-bg" id="modal-receive" style="display:none"><div class="modal-box"><div class="modal-title">รับสินค้าเข้าคลัง</div><div class="form-row"><div class="f-group"><label>เลือกสินค้า</label><select id="rcv-prod" style="width:100%"></select></div><div class="f-group"><label>จำนวนที่รับ</label><input id="rcv-qty" type="number" value="1" min="1"></div></div><div class="f-group"><label>หมายเหตุ</label><input id="rcv-note" type="text" placeholder="เช่น รับจาก PO-0001"></div><div class="modal-actions"><button class="btn btn-ghost" id="btn-cancel-receive">ยกเลิก</button><button class="btn btn-success" id="btn-save-receive">บันทึกรับสินค้า</button></div></div></div>
+
+<div class="modal-bg" id="modal-add-user" style="display:none"><div class="modal-box"><div class="modal-title">เพิ่มผู้ใช้งาน</div><div class="form-row"><div class="f-group"><label>Username</label><input id="nu-user" type="text"></div><div class="f-group"><label>รหัสผ่าน</label><input id="nu-pass" type="password"></div></div><div class="form-row"><div class="f-group"><label>ชื่อ-นามสกุล</label><input id="nu-fname" type="text"></div><div class="f-group"><label>บทบาท</label><select id="nu-role"><option value="staff">พนักงาน (staff)</option><option value="warehouse">คลังสินค้า (warehouse)</option><option value="manager">ผู้จัดการ (manager)</option><option value="admin">ผู้ดูแลระบบ (admin)</option></select></div></div><div class="f-group" style="margin-bottom:8px"><label>แผนก</label><select id="nu-dept"><option value="">-- เลือกแผนก --</option><option>QC</option><option>MDB</option><option>TSR</option><option>HP</option><option>HR</option><option>Admin</option><option>Store</option><option>RD</option><option>Weight</option><option>Purchase</option><option>Shipping</option><option>Account</option><option>IT</option></select></div><div class="modal-actions"><button class="btn btn-ghost" id="btn-cancel-user">ยกเลิก</button><button class="btn btn-primary" id="btn-save-user">บันทึก</button></div></div></div>
+
+<div id="toasts"></div>
+<script src="app.js"></script>
+</body>
+</html>
