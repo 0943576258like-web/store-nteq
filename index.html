@@ -338,8 +338,6 @@ function load() {
   loadSettings();
   loadRepairs();
   loadDevices();
-  loadDevices();
-  loadDevices();
 }
 
 // ═══════════════════════════════════════
@@ -533,9 +531,7 @@ function renderAll() { renderDashboard(); updateBadge(); updateRepairBadge(); }
 //  DASHBOARD
 // ═══════════════════════════════════════
 function renderDashboard() {
-  setTimeout(renderRepairDashCards,50);
   setTimeout(renderRepairDashCards, 50);
-  renderRepairDashCards();
   const total   = requests.length;
   const pending = requests.filter(r=>r.status==='pending').length;
   const issued  = requests.filter(r=>r.status==='issued').length;
@@ -1204,7 +1200,7 @@ function renderReportMenu() {
           {v:lowStock, l:'สต๊อกต่ำกว่าขั้นต่ำ',c:'#ef4444', ic:'⚠️'},
           {v:repairOpen,l:'งานซ่อมค้าง',     c:'#f97316', ic:'🔧'},
         ].map(m=>`
-          <div style="background:#fff;border-radius:14px;padding:16px 18px;border:1.5px solid #e4e7ef;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+          <div style="background:rgba(17,24,39,0.85);border-radius:14px;padding:16px 18px;border:1.5px solid #e4e7ef;box-shadow:0 2px 8px rgba(0,0,0,.04)">
             <div style="font-size:24px;margin-bottom:6px">${m.ic}</div>
             <div style="font-size:26px;font-weight:800;color:${m.c};line-height:1">${m.v}</div>
             <div style="font-size:12px;color:#64748b;margin-top:4px;font-weight:500">${m.l}</div>
@@ -1216,10 +1212,10 @@ function renderReportMenu() {
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
         ${REPORT_CARDS.map(c=>`
           <div onclick="openSubReport('${c.id}')" style="
-            background:#fff;border-radius:16px;padding:22px 18px;
+            background:rgba(17,24,39,0.9);border-radius:16px;padding:22px 18px;
             border:2px solid #e4e7ef;cursor:pointer;transition:all .2s;
             box-shadow:0 2px 8px rgba(0,0,0,.04);
-          " onmouseover="this.style.borderColor='${c.color}';this.style.boxShadow='0 8px 24px rgba(0,0,0,.1);this.style.transform='translateY(-3px)'"
+          " onmouseover="this.style.borderColor='${c.color}';this.style.boxShadow='0 8px 24px rgba(0,0,0,.1)';this.style.transform='translateY(-3px)'"
             onmouseout="this.style.borderColor='#e4e7ef';this.style.boxShadow='0 2px 8px rgba(0,0,0,.04)';this.style.transform='translateY(0)'">
             <div style="width:44px;height:44px;border-radius:12px;background:${c.bg};display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px">${c.icon}</div>
             <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:4px">${c.title}</div>
@@ -1274,7 +1270,7 @@ function renderSubReport(id) {
 
 /* ── helpers ── */
 function rCard(label, value, color, sub) {
-  return `<div style="background:#fff;border-radius:12px;padding:16px;border:1.5px solid #e4e7ef">
+  return `<div style="background:rgba(17,24,39,0.9);border-radius:12px;padding:16px;border:1.5px solid #e4e7ef">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:6px">${label}</div>
     <div style="font-size:28px;font-weight:800;color:${color||'#0f172a'};line-height:1">${value}</div>
     ${sub?`<div style="font-size:12px;color:#64748b;margin-top:4px">${sub}</div>`:''}
@@ -1301,7 +1297,7 @@ function tableWrap(thead, tbody) {
   </div>`;
 }
 function secCard(title, content) {
-  return `<div style="background:#fff;border-radius:14px;border:1.5px solid #e4e7ef;padding:20px;margin-bottom:14px">
+  return `<div style="background:rgba(17,24,39,0.85);border-radius:14px;border:1.5px solid #e4e7ef;padding:20px;margin-bottom:14px">
     <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9">${title}</div>
     ${content}
   </div>`;
@@ -2258,43 +2254,6 @@ function closeDeviceModal() { document.getElementById('dev-modal').style.display
 
 
 
-function renderRepairDashCards() {
-  const fv = document.querySelector('input[name="repair-dash-filter"]:checked')?.value || 'all';
-  const dt = document.getElementById('repair-dash-date')?.value || '';
-  document.getElementById('repair-dash-date-wrap').style.display = fv === 'date' ? 'inline-flex' : 'none';
-  const now = new Date();
-  const ym = now.toISOString().slice(0,7);
-  let list = repairs;
-  if (fv === 'month') list = repairs.filter(r => (r.created||'').startsWith(ym));
-  else if (fv === 'date' && dt) list = repairs.filter(r => (r.created||'').startsWith(dt));
-  const cnt = {open:0, checking:0, inprogress:0, sent:0, done:0, cannot:0, pending:0, complete:0};
-  list.forEach(r => {
-    if (r.status === 'open') cnt.open++;
-    else if (r.status === 'checking') cnt.checking++;
-    else if (r.status === 'inprogress') cnt.inprogress++;
-    else if (r.status === 'sent') cnt.sent++;
-    else if (r.status === 'done') cnt.done++;
-    else if (r.status === 'cannot') cnt.cannot++;
-    else if (r.status === 'pending') cnt.pending++;
-    else if (r.status === 'complete') cnt.complete++;
-  });
-  // map old statuses for display
-  const setEl = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
-  setEl('rdc-open', cnt.open);
-  setEl('rdc-checking', cnt.checking);
-  setEl('rdc-inprogress', cnt.inprogress);
-  setEl('rdc-sent', cnt.sent);
-  setEl('rdc-done', cnt.done);
-  setEl('rdc-cannot', cnt.cannot);
-  setEl('rdc-pending', cnt.pending);
-  setEl('rdc-complete', cnt.complete);
-}
-
-
-
-// ═══════════════════════════════════════════
-// DEVICES MODULE
-// ═══════════════════════════════════════════
 function loadDevices() {
   try { deviceData = JSON.parse(localStorage.getItem('srp_devices')) || JSON.parse(JSON.stringify(DEFAULT_DEVICES));
   } catch(e) { deviceData = JSON.parse(JSON.stringify(DEFAULT_DEVICES)); }
@@ -2417,22 +2376,6 @@ function closeDeviceModal(){document.getElementById('dev-modal').style.display='
 // ═══════════════════════════════════════════
 // REPAIR DASHBOARD CARDS
 // ═══════════════════════════════════════════
-function renderRepairDashCards() {
-  const fv = document.querySelector('input[name="rdfilter"]:checked')?.value || 'all';
-  const dt = document.getElementById('rdd-date')?.value || '';
-  const dw = document.getElementById('rdd-wrap');
-  if(dw) dw.style.display = fv==='date' ? 'flex' : 'none';
-  const ym = new Date().toISOString().slice(0,7);
-  let list = repairs || [];
-  if(fv==='month') list = list.filter(r=>(r.created||'').startsWith(ym));
-  else if(fv==='date' && dt) list = list.filter(r=>(r.created||'').startsWith(dt));
-  const cnt={open:0,checking:0,inprogress:0,sent:0,done:0,cannot:0,pending:0,complete:0};
-  list.forEach(r=>{if(cnt[r.status]!==undefined) cnt[r.status]++;});
-  const s=id=>{const el=document.getElementById(id);if(el)el.textContent=cnt[id.replace('rdc-','')]||0;};
-  ['rdc-open','rdc-checking','rdc-inprogress','rdc-sent','rdc-done','rdc-cannot','rdc-pending','rdc-complete'].forEach(s);
-}
-
-
 function loadDevices(){try{deviceData=JSON.parse(localStorage.getItem('srp_devices'))||JSON.parse(JSON.stringify(DEFAULT_DEVICES));}catch(e){deviceData=JSON.parse(JSON.stringify(DEFAULT_DEVICES));}}
 function saveDevices(){try{localStorage.setItem('srp_devices',JSON.stringify(deviceData));}catch(e){}}
 function renderDevices(){
@@ -2442,29 +2385,36 @@ function renderDevices(){
     const mQ=!q||[d.code,d.name,d.sn,d.dept,d.user,d.brand,d.model].some(v=>(v||'').toLowerCase().includes(q));
     return mQ&&(!st||d.status===st);
   });
-  const stL={active:'\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e1b\u0e01\u0e15\u0e34',transit:'\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c\u0e2a\u0e48\u0e27\u0e19\u0e01\u0e25\u0e32\u0e07',inactive:'\u0e40\u0e25\u0e34\u0e01\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19'};
-  const stC={active:'#16a34a',transit:'#2563eb',inactive:'#dc2626'};
-  const bar=document.getElementById('dev-stat-bar');
-  if(bar)bar.innerHTML=Object.keys(stL).map(k=>`<span style="color:${stC[k]}">&#10003; ${stL[k]} <strong>${deviceData.filter(d=>d.status===k).length}</strong></span>`).join(' &nbsp;|&nbsp; ')+` &nbsp;|&nbsp; <span>\u2139\ufe0f \u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14 <strong>${deviceData.length}</strong></span>`;
+  const stL={active:'ใช้งานปกติ',transit:'อุปกรณ์ส่วนกลาง',inactive:'เลิกใช้งาน'};
+  const stC={active:'#10b981',transit:'#f59e0b',inactive:'#94a3b8'};
+  const tbody=document.getElementById('dev-tbody');
+  if(!tbody)return;
+  const cntAll=deviceData.length,cntActive=deviceData.filter(d=>d.status==='active').length,cntTransit=deviceData.filter(d=>d.status==='transit').length,cntInactive=deviceData.filter(d=>d.status==='inactive').length;
+  const sb=document.getElementById('dev-stat-bar');
+  if(sb)sb.innerHTML=`<span style="color:#10b981;font-weight:600">ใช้งานปกติ: ${cntActive}</span><span style="color:#f59e0b;font-weight:600">ส่วนกลาง: ${cntTransit}</span><span style="color:#94a3b8;font-weight:600">เลิกใช้: ${cntInactive}</span><span style="color:#6b7280">รวมทั้งหมด: ${cntAll}</span>`;
   const ct=document.getElementById('dev-count-txt');
-  if(ct)ct.textContent=`\u0e41\u0e2a\u0e14\u0e07 1 \u0e16\u0e36\u0e07 ${filtered.length} \u0e08\u0e32\u0e01 ${filtered.length} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23`;
-  const tb=document.getElementById('dev-tbody');
-  if(!tb)return;
-  tb.innerHTML=filtered.length?filtered.map(d=>`<tr style="border-bottom:1px solid #f3f4f6">
-    <td style="padding:10px 8px"><input type="checkbox" data-id="${d.id}" class="dev-chk" onchange="updateDevBulkBar()"></td>
-    <td style="padding:8px"><div style="width:58px;height:48px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9px">NO IMG</div></td>
-    <td style="padding:8px 10px"><strong style="font-family:'IBM Plex Mono',monospace;font-size:12px">${d.code}</strong><br><span style="color:#6b7280;font-size:11px">S/N : ${d.sn||'-'}</span></td>
-    <td style="padding:8px 10px"><strong>${d.name}</strong><br><span style="color:#6b7280;font-size:12px">${d.type}</span>${d.subtype?`<br><span style="color:#3b82f6;font-size:11px">${d.subtype}</span>`:''}</td>
-    <td style="padding:8px 10px;font-size:13px">${d.brand||''} ${d.model||''}</td>
-    <td style="padding:8px 10px;font-size:13px">${d.dept||'-'}</td>
-    <td style="padding:8px 10px;font-size:13px">${d.user||'-'}${d.company?`<br><span style="font-size:11px;color:#6b7280">${d.company}</span>`:''}</td>
-    <td style="padding:8px 10px;font-size:12px">${d.warranty||'-'}</td>
-    <td style="padding:8px 10px;font-size:13px">${d.price>0?d.price.toLocaleString():'-'}</td>
-    <td style="padding:8px">
-      <button onclick="viewDevice('${d.id}')" title="\u0e14\u0e39" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:4px;cursor:pointer;margin-right:3px">&#9432;</button>
-      <button onclick="editDevice('${d.id}')" title="\u0e41\u0e01\u0e49\u0e44\u0e02" style="background:#f97316;color:#fff;border:none;padding:5px 8px;border-radius:4px;cursor:pointer">&#9998;</button>
-    </td>
-  </tr>`).join(''):'<tr><td colspan="10"><div class="empty-state">\u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c</div></td></tr>';
+  if(ct)ct.textContent=`แสดง ${filtered.length} รายการ`;
+  tbody.innerHTML=filtered.length===0?`<tr><td colspan="10" style="text-align:center;padding:2rem;color:#6b7280">ไม่พบข้อมูลอุปกรณ์</td></tr>`:filtered.map(d=>{
+    const sc=stC[d.status]||'#94a3b8';const sl=stL[d.status]||d.status;
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 8px"><input type="checkbox" class="dev-chk" data-id="${d.id}" onchange="updateDevBulkBar()"></td>
+      <td style="padding:10px 8px"><div style="width:44px;height:44px;border-radius:8px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;font-size:20px">💻</div></td>
+      <td style="padding:10px 8px;font-family:monospace;font-size:12px;color:#60a5fa">${d.code||'-'}</td>
+      <td style="padding:10px 8px"><div style="font-weight:600;color:#e2e8f0">${d.name||'-'}</div><div style="font-size:11px;color:#94a3b8">${d.type||''} ${d.subtype?'· '+d.subtype:''}</div></td>
+      <td style="padding:10px 8px;color:#cbd5e1">${d.brand||'-'} ${d.model||''}</td>
+      <td style="padding:10px 8px;color:#cbd5e1">${d.dept||'-'}</td>
+      <td style="padding:10px 8px;color:#cbd5e1">${d.user||'-'}<br><span style="font-size:11px;color:#94a3b8">${d.company||''}</span></td>
+      <td style="padding:10px 8px;font-size:12px;color:#cbd5e1">${d.warranty||'-'}</td>
+      <td style="padding:10px 8px;font-size:12px;color:#cbd5e1">${d.price?Number(d.price).toLocaleString()+' ฿':'-'}</td>
+      <td style="padding:10px 8px">
+        <span style="background:${sc}22;color:${sc};padding:3px 8px;border-radius:99px;font-size:11px;font-weight:600">${sl}</span>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button onclick="editDevice('${d.id}')" style="background:#1e3a5f;color:#60a5fa;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">แก้ไข</button>
+          <button onclick="if(confirm('ลบ?')){deviceData=deviceData.filter(x=>x.id!=='${d.id}');saveDevices();renderDevices();}" style="background:#3b1515;color:#f87171;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">ลบ</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
 }
 function updateDevBulkBar(){const n=document.querySelectorAll('.dev-chk:checked').length;const b=document.getElementById('dev-bulk-bar');if(b)b.style.display=n>0?'flex':'none';const c=document.getElementById('dev-checked-count');if(c)c.textContent=n;}
 function deleteSelectedDevices(){const ids=[...document.querySelectorAll('.dev-chk:checked')].map(c=>c.dataset.id);if(!ids.length)return;if(!confirm(`\u0e25\u0e1a\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c ${ids.length} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23?`))return;deviceData=deviceData.filter(d=>!ids.includes(d.id));saveDevices();renderDevices();updateDevBulkBar();toast(`\u0e25\u0e1a ${ids.length} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e41\u0e25\u0e49\u0e27`,'warn');}
@@ -2479,24 +2429,80 @@ function renderRepairDashCards(){const fv=document.querySelector('input[name="rd
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f0f2f5;--bg-2:#e8edf5;
-  --surface:#ffffff;--surface-2:#f8fafc;
-  --border:#e4e7ef;--border-bright:#dde2ee;
-  --text:#0f172a;--text-muted:#64748b;--text-light:#94a3b8;
-  --accent:#2563eb;--accent-dim:#1d4ed8;
-  --accent-glow:rgba(37,99,235,.15);--accent-light:rgba(37,99,235,.08);
+  --bg:#020c0e;--bg-2:#041014;
+  --surface:rgba(4,20,24,0.85);--surface-2:rgba(6,28,34,0.9);
+  --border:rgba(0,255,160,0.12);--border-bright:rgba(0,255,160,0.22);
+  --text:#d4fff0;--text-muted:#7ab89a;--text-light:#3d6e56;
+  --accent:#00ffa3;--accent-dim:#00cc82;
+  --accent-glow:rgba(0,255,163,.18);--accent-light:rgba(0,255,163,.07);
+  --cyan:#00e5ff;--cyan-light:rgba(0,229,255,.08);
   --amber:#f59e0b;--amber-light:rgba(245,158,11,.1);
-  --red:#ef4444;--red-light:rgba(239,68,68,.1);
-  --blue:#3b82f6;--blue-light:rgba(59,130,246,.1);
-  --purple:#8b5cf6;--purple-light:rgba(139,92,246,.1);
-  --green:#10b981;--green-light:rgba(16,185,129,.1);
+  --red:#ff4d6d;--red-light:rgba(255,77,109,.1);
+  --blue:#00bfff;--blue-light:rgba(0,191,255,.1);
+  --purple:#b44dff;--purple-light:rgba(180,77,255,.1);
+  --green:#00ffa3;--green-light:rgba(0,255,163,.1);
+  --neon-green:#39ff14;--neon-blue:#00e5ff;
   --radius:8px;--radius-lg:12px;--radius-xl:16px;
-  --shadow:0 1px 4px rgba(0,0,0,.06);
-  --shadow-md:0 4px 20px rgba(0,0,0,.1);
+  --shadow:0 1px 12px rgba(0,255,160,.06);
+  --shadow-md:0 4px 30px rgba(0,255,160,.12);
+  --glow-green:0 0 20px rgba(0,255,163,.4),0 0 60px rgba(0,255,163,.15);
+  --glow-cyan:0 0 20px rgba(0,229,255,.4),0 0 60px rgba(0,229,255,.15);
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;min-height:100vh}
+body{
+  font-family:'Sarabun',sans-serif;
+  background:#020c0e;
+  color:var(--text);
+  font-size:15px;
+  line-height:1.6;
+  min-height:100vh;
+}
+
+
+/* ── Cyber IT Background ── */
+#it-bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* Floating glowing orbs behind everything */
+body::before{
+  content:'';
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 50% 40% at 15% 25%, rgba(0,255,163,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 50% at 85% 75%, rgba(0,229,255,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 30% 30% at 70% 15%, rgba(57,255,20,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 35% at 30% 85%, rgba(0,191,255,0.04) 0%, transparent 50%);
+  animation:orbFloat 12s ease-in-out infinite alternate;
+}
+body::after{
+  content:'';
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(0,255,163,0.012) 3px,
+      rgba(0,255,163,0.012) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 3px,
+      rgba(0,255,163,0.008) 3px,
+      rgba(0,255,163,0.008) 4px
+    );
+}
+@keyframes orbFloat{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  33%{opacity:.85;transform:translate(2%,1%) scale(1.05)}
+  66%{opacity:.9;transform:translate(-1%,2%) scale(0.97)}
+  100%{opacity:1;transform:translate(1%,-1%) scale(1.02)}
+}
+@keyframes nodePulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.4)}}
+@keyframes neonPulse{0%,100%{box-shadow:var(--glow-green)}50%{box-shadow:0 0 30px rgba(0,255,163,.7),0 0 80px rgba(0,255,163,.3)}}
+@keyframes scanline{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+@keyframes textGlow{0%,100%{text-shadow:0 0 8px rgba(0,255,163,.5)}50%{text-shadow:0 0 18px rgba(0,255,163,.9),0 0 35px rgba(0,255,163,.4)}}
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -2508,12 +2514,9 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
    LOGIN SCREEN
 ══════════════════════════════════ */
 .screen{
-  position:fixed;inset:0;z-index:9000;
+  position:fixed;inset:0;z-index:9000;backdrop-filter:blur(0px);
   display:flex;align-items:center;justify-content:center;
-  background:var(--bg);
-  background-image:
-    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(0,201,167,.06) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 40% at 80% 70%, rgba(96,165,250,.05) 0%, transparent 70%);
+  background:#020c0e;
 }
 .screen.hidden{display:none}
 
@@ -2563,7 +2566,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
   box-shadow:0 4px 16px rgba(0,201,167,.3);
   transition:all .2s;
 }
-.big-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,201,167,.4)}
+.big-btn:hover{transform:translateY(-1px);box-shadow:0 6px 30px rgba(0,255,163,.5),0 0 20px rgba(0,255,163,.3)}
 .big-btn:active{transform:translateY(0)}
 
 .box-hint{font-size:11.5px;color:var(--text-light);text-align:center;margin-top:.75rem;line-height:1.7}
@@ -2643,7 +2646,7 @@ header{
 /* ══════════════════════════════════
    LAYOUT & NAV
 ══════════════════════════════════ */
-.layout{display:flex;min-height:calc(100vh - 58px)}
+.layout{display:flex;min-height:calc(100vh - 58px);position:relative;z-index:1}
 
 nav{
   width:226px;min-width:226px;
@@ -2685,7 +2688,7 @@ nav{
 .nav-div{border:none;border-top:1px solid var(--border);margin:.75rem .875rem}
 .nav-item.off{opacity:.25;cursor:not-allowed;pointer-events:none}
 
-main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;max-width:calc(100vw - 226px)}
+main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;max-width:calc(100vw - 226px);background:transparent;position:relative;z-index:1}
 .page-hd{margin-bottom:1.5rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
 .page-hd h1{font-size:21px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
 .page-hd p{font-size:13px;color:var(--text-muted);margin-top:3px}
@@ -2706,7 +2709,7 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;max-width:calc(100vw - 226px)
   color:#0d0f12;border-color:transparent;
   box-shadow:0 2px 12px rgba(0,201,167,.25);
 }
-.btn-primary:hover{box-shadow:0 4px 16px rgba(0,201,167,.35);transform:translateY(-1px)}
+.btn-primary:hover{box-shadow:0 4px 24px rgba(0,255,163,.5),0 0 12px rgba(0,255,163,.3);transform:translateY(-1px)}
 
 .btn-secondary{
   background:var(--surface-2);color:var(--text-muted);
@@ -2964,7 +2967,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .vbar-wrap:hover .vbar{transform:translateY(-4px) scaleY(1.02);filter:brightness(1.08);
   box-shadow:0 12px 26px -4px var(--bar-glow,rgba(59,130,246,.7)),inset 0 1px 0 rgba(255,255,255,.5)}
 .vbar-val{position:absolute;top:-22px;left:50%;transform:translateX(-50%);
-  font-size:12px;font-weight:700;color:#0f172a;background:#fff;padding:2px 8px;border-radius:999px;
+  font-size:12px;font-weight:700;color:#0f172a;background:rgba(17,24,39,0.9);padding:2px 8px;border-radius:999px;
   border:1px solid var(--border);box-shadow:0 2px 6px rgba(0,0,0,.06);
   opacity:0;animation:vbarPop .4s .9s ease-out forwards;white-space:nowrap}
 .vbar-lbl{position:absolute;bottom:-32px;left:50%;transform:translateX(-50%);
@@ -3162,7 +3165,7 @@ nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px
   margin-bottom:12px;
   box-shadow:0 4px 16px rgba(59,130,246,.45);
 }
-.nav-brand-name{font-size:14px;font-weight:700;color:#fff;line-height:1.3}
+.nav-brand-name{color:#00ffa3;text-shadow:0 0 12px rgba(0,255,163,.5);font-size:14px;font-weight:700;color:#fff;line-height:1.3}
 .nav-brand-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px}
 
 .nav-sec{padding:0 10px;margin-bottom:4px}
@@ -3197,7 +3200,7 @@ nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px
   margin-left:auto;background:#f59e0b;color:#000;
   font-size:10px;font-weight:700;border-radius:999px;padding:2px 7px;
   font-family:'IBM Plex Mono',monospace;
-  box-shadow:0 0 8px rgba(245,158,11,.5);
+  box-shadow:0 0 8px rgba(0,255,163,.6),0 0 20px rgba(0,255,163,.3);
 }
 .nav-div{border:none;border-top:1px solid rgba(255,255,255,.08);margin:.6rem 10px}
 .nav-item.off{opacity:.2;cursor:not-allowed;pointer-events:none}
@@ -3223,11 +3226,11 @@ nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px
 
 /* Main area */
 main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
-  background:#f0f2f5;max-width:calc(100vw - 240px)}
+  background:transparent;max-width:calc(100vw - 240px)}
 
 /* Header */
-#app-header{background:#fff;border-bottom:1.5px solid #e4e7ef;
-  box-shadow:0 1px 8px rgba(0,0,0,.07);}
+#app-header{background:rgba(2,10,8,0.95);border-bottom:1.5px solid rgba(0,255,163,0.2);
+  box-shadow:0 2px 20px rgba(0,255,163,.08);backdrop-filter:blur(16px);position:relative;z-index:10;}
 
 /* ══ PRODUCT IMAGE ══ */
 .prod-img-wrap{
@@ -3238,21 +3241,21 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
   border:1.5px solid #e4e7ef;
 }
 .prod-row{display:flex;align-items:center;gap:10px}
-.prod-name-main{font-size:13.5px;font-weight:600;color:#0f172a}
+.prod-name-main{font-size:13.5px;font-weight:600;color:#e2e8f0}
 .prod-cat-sub{font-size:11px;color:#94a3b8;margin-top:1px}
 
 /* Stock card grid */
 .stock-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px}
 .stock-card{
-  background:#fff;border-radius:14px;padding:14px;
+  background:rgba(17,24,39,0.85);border-radius:14px;padding:14px;
   border:1.5px solid #e4e7ef;cursor:pointer;
   transition:all .2s;text-align:center;
 }
 .stock-card:hover{border-color:#3b82f6;box-shadow:0 4px 20px rgba(59,130,246,.12);transform:translateY(-2px)}
 .stock-card-emoji{font-size:40px;margin-bottom:8px;display:block}
-.stock-card-name{font-size:12.5px;font-weight:600;color:#0f172a;margin-bottom:2px}
+.stock-card-name{font-size:12.5px;font-weight:600;color:#e2e8f0;margin-bottom:2px}
 .stock-card-id{font-size:10px;color:#94a3b8;font-family:'IBM Plex Mono',monospace}
-.stock-card-qty{font-size:20px;font-weight:700;color:#1e3a8a;margin-top:6px}
+.stock-card-qty{font-size:20px;font-weight:700;color:#60a5fa;margin-top:6px}
 .stock-card-unit{font-size:11px;color:#64748b}
 .stock-card.low{border-color:#fca5a5;background:#fff5f5}
 .stock-card.low .stock-card-qty{color:#dc2626}
@@ -3277,6 +3280,131 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
 </div>
 
 <!-- ═══════════════ TOAST ═══════════════ -->
+
+<canvas id="it-bg-canvas"></canvas>
+<script>
+(function(){
+  const c=document.getElementById('it-bg-canvas');
+  if(!c)return;
+  const ctx=c.getContext('2d');
+  let W,H,nodes=[],scanY=0,t=0;
+
+  // Color palette — green & cyan neon
+  const COLORS=['#00ffa3','#00e5ff','#39ff14','#00cc82','#00bfff'];
+
+  function resize(){
+    W=c.width=window.innerWidth;
+    H=c.height=window.innerHeight;
+    initNodes();
+  }
+
+  function initNodes(){
+    nodes=[];
+    const n=Math.floor((W*H)/14000);
+    for(let i=0;i<n;i++){
+      const col=COLORS[Math.floor(Math.random()*COLORS.length)];
+      nodes.push({
+        x:Math.random()*W, y:Math.random()*H,
+        vx:(Math.random()-.5)*.4, vy:(Math.random()-.5)*.4,
+        r:Math.random()*2+0.5,
+        col, pulse:Math.random()*Math.PI*2,
+        pulseSpeed:0.02+Math.random()*0.03
+      });
+    }
+  }
+
+  function hexToRgb(hex){
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return `${r},${g},${b}`;
+  }
+
+  function draw(){
+    // Dark trail (not full clear — gives motion blur)
+    ctx.fillStyle='rgba(2,12,14,0.18)';
+    ctx.fillRect(0,0,W,H);
+
+    t+=0.008;
+    scanY=(scanY+0.6)%H;
+
+    // ── Scanline glow ──
+    const sg=ctx.createLinearGradient(0,scanY-60,0,scanY+60);
+    sg.addColorStop(0,'rgba(0,255,163,0)');
+    sg.addColorStop(0.5,'rgba(0,255,163,0.04)');
+    sg.addColorStop(1,'rgba(0,255,163,0)');
+    ctx.fillStyle=sg;
+    ctx.fillRect(0,scanY-60,W,120);
+
+    // ── Thin scanline ──
+    ctx.strokeStyle='rgba(0,255,163,0.08)';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,scanY);ctx.lineTo(W,scanY);ctx.stroke();
+
+    // ── Connections ──
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<160){
+          const alpha=(1-d/160)*0.22;
+          // Pick color between the two nodes
+          const rgb=hexToRgb(nodes[i].col);
+          ctx.strokeStyle=`rgba(${rgb},${alpha})`;
+          ctx.lineWidth=0.6;
+          ctx.beginPath();ctx.moveTo(nodes[i].x,nodes[i].y);ctx.lineTo(nodes[j].x,nodes[j].y);ctx.stroke();
+        }
+      }
+    }
+
+    // ── Nodes ──
+    nodes.forEach(n=>{
+      n.pulse+=n.pulseSpeed;
+      const pSize=n.r*(1+0.4*Math.sin(n.pulse));
+      const rgb=hexToRgb(n.col);
+      // Glow
+      const g2=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,pSize*5);
+      g2.addColorStop(0,`rgba(${rgb},0.35)`);
+      g2.addColorStop(1,`rgba(${rgb},0)`);
+      ctx.fillStyle=g2;
+      ctx.beginPath();ctx.arc(n.x,n.y,pSize*5,0,Math.PI*2);ctx.fill();
+      // Core
+      ctx.beginPath();ctx.arc(n.x,n.y,pSize,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${rgb},0.9)`;ctx.fill();
+
+      n.x+=n.vx; n.y+=n.vy;
+      if(n.x<0||n.x>W)n.vx*=-1;
+      if(n.y<0||n.y>H)n.vy*=-1;
+    });
+
+    // ── Hexagon grid overlay (subtle, futuristic) ──
+    drawHexGrid();
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawHexGrid(){
+    const s=55, h=s*Math.sqrt(3)/2;
+    ctx.strokeStyle='rgba(0,255,163,0.03)';
+    ctx.lineWidth=0.5;
+    for(let row=-1;row<H/h+2;row++){
+      for(let col=-1;col<W/s+2;col++){
+        const ox=(row%2===0)?0:s*0.75;
+        const cx=col*s*1.5+ox, cy=row*h;
+        ctx.beginPath();
+        for(let k=0;k<6;k++){
+          const a=Math.PI/180*(60*k-30);
+          const px=cx+s*0.5*Math.cos(a), py=cy+s*0.5*Math.sin(a);
+          k===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+        }
+        ctx.closePath();ctx.stroke();
+      }
+    }
+  }
+
+  window.addEventListener('resize',resize);
+  resize(); draw();
+})();
+</script>
+
 <div id="toasts"></div>
 
 <!-- ═══════════════ HEADER ═══════════════ -->
@@ -3354,14 +3482,6 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
       <svg viewBox="0 0 20 20" fill="none"><path d="M3 10a7 7 0 1 0 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3 4v6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 7v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       ประวัติทั้งหมด
     </button>
-        <button class="nav-item" id="nav-devices" onclick="goTo('devices',this)">
-      <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      อุปกรณ์
-    </button>
-        <button class="nav-item" id="nav-devices" onclick="goTo('devices',this)">
-      <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      อุปกรณ์
-    </button>
     <button class="nav-item" id="nav-devices" onclick="goTo('devices',this)">
       <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       อุปกรณ์
@@ -3429,7 +3549,9 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
        onmouseover="this.style.boxShadow='0 4px 20px rgba(59,130,246,.18)';this.style.transform='translateY(-2px)'"
        onmouseout="this.style.boxShadow='';this.style.transform=''"
        onclick="goTo('repair',document.getElementById('nav-repair'))">
-    <div style="font-size:3rem;margin-bottom:.5rem">🔧</div>
+    <div style="margin-bottom:.75rem;width:80px;height:80px;border-radius:14px;overflow:hidden;margin-left:auto;margin-right:auto;border:2px solid #e2e8f0;">
+      <img src="https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=160&h=160&fit=crop" alt="IT Repair" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='<span style=\'font-size:3rem\'>🔧</span>'">
+    </div>
     <div style="font-size:1.1rem;font-weight:700;color:#1e3a5f;margin-bottom:.3rem">แจ้งซ่อม IT</div>
     <div style="font-size:13px;color:var(--text-muted)">แจ้งปัญหาอุปกรณ์ IT เพื่อให้ทีม IT ดำเนินการ</div>
     <div style="margin-top:1rem">
@@ -3440,7 +3562,9 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
        onmouseover="this.style.boxShadow='0 4px 20px rgba(16,185,129,.18)';this.style.transform='translateY(-2px)'"
        onmouseout="this.style.boxShadow='';this.style.transform=''"
        onclick="goTo('request',document.getElementById('nav-request'))">
-    <div style="font-size:3rem;margin-bottom:.5rem">📦</div>
+    <div style="margin-bottom:.75rem;width:80px;height:80px;border-radius:14px;overflow:hidden;margin-left:auto;margin-right:auto;border:2px solid #e2e8f0;">
+      <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=160&h=160&fit=crop" alt="IT Stock" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='<span style=\'font-size:3rem\'>📦</span>'">
+    </div>
     <div style="font-size:1.1rem;font-weight:700;color:#065f46;margin-bottom:.3rem">เบิกสต็อก IT</div>
     <div style="font-size:13px;color:var(--text-muted)">ส่งคำขอเบิกอุปกรณ์สำนักงานและ IT</div>
     <div style="margin-top:1rem">
@@ -3448,103 +3572,6 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
     </div>
   </div>
 </div>
-<div class="card" style="margin-bottom:1.25rem">
-  <div class="card-title">ข้อมูลงานซ่อม</div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;align-items:center;margin-bottom:1rem">
-    <label style="cursor:pointer;display:flex;align-items:center;gap:4px"><input type="radio" name="rdfilter" value="all" checked onchange="renderRepairDashCards()"> ทั้งหมด</label>
-    <label style="cursor:pointer;display:flex;align-items:center;gap:4px"><input type="radio" name="rdfilter" value="month" onchange="renderRepairDashCards()"> เดือนปัจจุบัน</label>
-    <label style="cursor:pointer;display:flex;align-items:center;gap:4px"><input type="radio" name="rdfilter" value="date" onchange="renderRepairDashCards()"> ค้นหา วันที่</label>
-    <span id="rdd-wrap" style="display:none"><input type="date" id="rdd-date" onchange="renderRepairDashCards()" style="padding:3px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px"></span>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0.75rem">
-    <div style="text-align:center;padding:0.75rem 0;border-bottom:3px solid #f59e0b">
-      <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:8px">แจ้ซ่อม</div>
-      <div id="rdc-open" style="width:52px;height:52px;border-radius:50%;background:#f59e0b;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0;border-bottom:3px solid #38bdf8">
-      <div style="font-size:13px;font-weight:700;color:#0284c7;margin-bottom:8px">รอตรวจสอบ</div>
-      <div id="rdc-checking" style="width:52px;height:52px;border-radius:50%;background:#38bdf8;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0;border-bottom:3px solid #1e3a5f">
-      <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:8px">ดำเนินการ</div>
-      <div id="rdc-inprogress" style="width:52px;height:52px;border-radius:50%;background:#1e3a5f;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0;border-bottom:3px solid #7c3aed">
-      <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px">ส่งซ่อม / เคลม</div>
-      <div id="rdc-sent" style="width:52px;height:52px;border-radius:50%;background:#7c3aed;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem">
-    <div style="text-align:center;padding:0.75rem 0">
-      <div style="font-size:13px;font-weight:700;color:#16a34a;margin-bottom:8px">สำเร็จ</div>
-      <div id="rdc-done" style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0">
-      <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">ยกเลิก</div>
-      <div id="rdc-cannot" style="width:52px;height:52px;border-radius:50%;background:#dc2626;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0">
-      <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:8px">รออนุมัติแจ้ซ่อม</div>
-      <div id="rdc-pending" style="width:52px;height:52px;border-radius:50%;background:#1e40af;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0">
-      <div style="font-size:13px;font-weight:700;color:#10b981;margin-bottom:8px">เสร็จสมบูรณ์</div>
-      <div id="rdc-complete" style="width:52px;height:52px;border-radius:50%;background:#10b981;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-  </div>
-</div>
-
-
-<div class="card" style="margin-bottom:1.25rem">
-  <div class="card-title">
-    <svg viewBox="0 0 20 20" fill="none" style="width:16px;height:16px"><path d="M14.5 3.5l2 2-9.5 9.5-2.5.5.5-2.5 9.5-9.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-    ข้อมูลงานซ่อม
-  </div>
-  <div style="display:flex;gap:16px;align-items:center;margin-bottom:1rem;font-size:13px;flex-wrap:wrap">
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:#3b82f6"><input type="radio" name="rdfilter" value="all" checked onchange="renderRepairDashCards()"> ทั้งหมด</label>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="rdfilter" value="month" onchange="renderRepairDashCards()"> เดือนปัจจุบัน</label>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer"><input type="radio" name="rdfilter" value="date" onchange="document.getElementById('rdd-wrap').style.display='flex';renderRepairDashCards()"> ค้นหา วันที่</label>
-    <span id="rdd-wrap" style="display:none"><input type="date" id="rdd-date" onchange="renderRepairDashCards()" style="padding:3px 8px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px"></span>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0.75rem">
-    <div style="text-align:center;padding:0.75rem 0.5rem;border-bottom:3px solid #f59e0b">
-      <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:8px">แจ้งซ่อม</div>
-      <div id="rdc-open" style="width:52px;height:52px;border-radius:50%;background:#f59e0b;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0.5rem;border-bottom:3px solid #38bdf8">
-      <div style="font-size:13px;font-weight:700;color:#0284c7;margin-bottom:8px">รอตรวจสอบ</div>
-      <div id="rdc-checking" style="width:52px;height:52px;border-radius:50%;background:#38bdf8;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0.5rem;border-bottom:3px solid #1e3a5f">
-      <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:8px">ดำเนินการ</div>
-      <div id="rdc-inprogress" style="width:52px;height:52px;border-radius:50%;background:#1e3a5f;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0.5rem;border-bottom:3px solid #7c3aed">
-      <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px">ส่งซ่อม / เคลม</div>
-      <div id="rdc-sent" style="width:52px;height:52px;border-radius:50%;background:#7c3aed;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem">
-    <div style="text-align:center;padding:0.75rem 0.5rem">
-      <div style="font-size:13px;font-weight:700;color:#16a34a;margin-bottom:8px">สำเร็จ</div>
-      <div id="rdc-done" style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0.5rem">
-      <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">ยกเลิก</div>
-      <div id="rdc-cannot" style="width:52px;height:52px;border-radius:50%;background:#dc2626;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0.5rem">
-      <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:8px">รออนุมัติแจ้งซ่อม</div>
-      <div id="rdc-pending" style="width:52px;height:52px;border-radius:50%;background:#1e40af;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-    <div style="text-align:center;padding:0.75rem 0.5rem">
-      <div style="font-size:13px;font-weight:700;color:#10b981;margin-bottom:8px">เสร็จสมบูรณ์</div>
-      <div id="rdc-complete" style="width:52px;height:52px;border-radius:50%;background:#10b981;color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto">0</div>
-    </div>
-  </div>
-</div>
-
-
 <!-- Repair Dashboard Summary -->
 <div class="card" style="margin-bottom:1.25rem" id="dash-repair-summary">
   <div class="card-title" style="margin-bottom:0.75rem">
@@ -3641,7 +3668,7 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
           <option>HP</option><option>HR</option><option>Admin</option>
           <option>IT</option><option>RD</option><option>Weight</option>
           <option>Purchase</option><option>Shipping</option>
-          <option>Account</option><option>IT</option>
+          <option>Account</option>
         </select></div>
       </div>
       <div class="form-group"><label>ประเภทการเบิก</label>
@@ -3782,115 +3809,6 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
 </div>
 
 
-<!-- DEVICES SECTION -->
-<div id="sec-devices" class="section">
-  <div class="page-hd">
-    <div><h1>อุปกรณ์</h1><p>จัดการข้อมูลอุปกรณ์ IT ทั้งหมด</p></div>
-    <div class="page-acts">
-      <button class="btn btn-primary" onclick="openAddDeviceModal()">
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        + เพิ่มอุปกรณ์
-      </button>
-    </div>
-  </div>
-  <!-- Search Tabs -->
-  <div class="card" style="padding:0.75rem 1rem">
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:0.75rem;flex-wrap:wrap">
-      <button class="dev-tab active" data-tab="name" onclick="setDevTab('name')" style="padding:6px 14px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid #3b82f6;color:#3b82f6">ชื่ออุปกรณ์</button>
-      <button class="dev-tab" data-tab="code" onclick="setDevTab('code')" style="padding:6px 14px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:#6b7280">ค้นหารหัสอุปกรณ์</button>
-      <button class="dev-tab" data-tab="dept" onclick="setDevTab('dept')" style="padding:6px 14px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:#6b7280">ค้นหาจาก หมวดหมู่ และ หน่วยงาน</button>
-      <button class="dev-tab" data-tab="type" onclick="setDevTab('type')" style="padding:6px 14px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:#6b7280">ประเภทอุปกรณ์</button>
-      <button class="dev-tab" data-tab="user" onclick="setDevTab('user')" style="padding:6px 14px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:#6b7280">ค้นหา ชื่อผู้ใช้งาน</button>
-      <button class="dev-tab" data-tab="warranty" onclick="setDevTab('warranty')" style="padding:6px 14px;border:none;background:none;cursor:pointer;font-size:13px;border-bottom:2px solid transparent;color:#6b7280">ข้อมูลการรับประกัน</button>
-    </div>
-    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">ชื่ออุปกรณ์</label>
-        <input id="dev-q" type="text" placeholder="พิมพ์เพื่อค้นหา..." oninput="renderDevices()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">
-      </div>
-      <div style="min-width:160px">
-        <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px">สถานะ</label>
-        <select id="dev-status-filter" onchange="renderDevices()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:100%">
-          <option value="">ใช้งานปกติ</option>
-          <option value="active">ใช้งานปกติ</option>
-          <option value="transit">อุปกรณ์ส่วนกลาง</option>
-          <option value="inactive">เลิกใช้งาน</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" onclick="renderDevices()" style="padding:7px 16px">
-        <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.8"/><path d="M14 14l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        ค้นหา
-      </button>
-    </div>
-  </div>
-  <!-- Stat bar -->
-  <div id="dev-stat-bar" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:0.5rem 0;font-size:13px"></div>
-  <!-- Bulk actions -->
-  <div id="dev-bulk-bar" style="display:none;gap:8px;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap">
-    <span style="font-size:13px;color:#6b7280">เลือก <strong id="dev-checked-count">0</strong> รายการ</span>
-    <button class="btn btn-danger" onclick="deleteSelectedDevices()" style="padding:5px 12px;font-size:12px">🗑 ลบรายการที่เลือก</button>
-    <button class="btn btn-secondary" onclick="generateQRSelected()" style="padding:5px 12px;font-size:12px">📱 สร้าง QR Code เฉพาะรายการที่เลือก</button>
-  </div>
-  <div id="dev-count-txt" style="font-size:13px;color:#6b7280;margin-bottom:0.5rem"></div>
-  <!-- Table -->
-  <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead style="background:#1e3a5f;color:#fff">
-        <tr>
-          <th style="padding:10px 8px;text-align:left;width:36px"><input type="checkbox" id="dev-chk-all" onchange="document.querySelectorAll('.dev-chk').forEach(c=>c.checked=this.checked);updateDevBulkBar()"></th>
-          <th style="padding:10px 8px;text-align:left;width:70px"></th>
-          <th style="padding:10px 8px;text-align:left">รหัสอุปกรณ์</th>
-          <th style="padding:10px 8px;text-align:left">ชื่ออุปกรณ์</th>
-          <th style="padding:10px 8px;text-align:left">ยี่ห้อ / รุ่น</th>
-          <th style="padding:10px 8px;text-align:left">หน่วยงาน / แผนก</th>
-          <th style="padding:10px 8px;text-align:left">ผู้ใช้งาน / สถานที่ตั้ง</th>
-          <th style="padding:10px 8px;text-align:left">การรับประกัน</th>
-          <th style="padding:10px 8px;text-align:left">ราคา</th>
-          <th style="padding:10px 8px;text-align:left;width:80px"></th>
-        </tr>
-      </thead>
-      <tbody id="dev-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- DEVICE MODAL -->
-<div id="dev-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:10px;width:90%;max-width:650px;padding:1.5rem;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <h3 id="dev-modal-title" style="font-size:17px;font-weight:600">เพิ่มอุปกรณ์ใหม่</h3>
-      <button onclick="closeDeviceModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280">&times;</button>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>รหัสอุปกรณ์ *</label><input id="dev-m-code" type="text" placeholder="เช่น 004-001-MB0001"></div>
-      <div class="form-group"><label>ชื่ออุปกรณ์ *</label><input id="dev-m-name" type="text" placeholder="เช่น OPPO A17k"></div>
-      <div class="form-group"><label>ยี่ห้อ</label><input id="dev-m-brand" type="text" placeholder="เช่น OPPO, Dell, HP"></div>
-      <div class="form-group"><label>รุ่น</label><input id="dev-m-model" type="text" placeholder="เช่น A17k CPH2471"></div>
-      <div class="form-group"><label>ประเภทอุปกรณ์</label><input id="dev-m-type" type="text" placeholder="เช่น Mobile phone, Laptop"></div>
-      <div class="form-group"><label>ประเภทย่อย</label><input id="dev-m-subtype" type="text" placeholder="เช่น Mobile Android, Windows"></div>
-      <div class="form-group"><label>Serial Number</label><input id="dev-m-sn" type="text" placeholder="S/N"></div>
-      <div class="form-group"><label>หน่วยงาน / แผนก</label><input id="dev-m-dept" type="text" placeholder="เช่น NTEQ-Quality Control"></div>
-      <div class="form-group"><label>ผู้ใช้งาน</label><input id="dev-m-user" type="text" placeholder="ชื่อผู้ใช้งาน"></div>
-      <div class="form-group"><label>บริษัท / สถานที่</label><input id="dev-m-company" type="text" placeholder="เช่น เอ็นเทคโพลิเมอร์"></div>
-      <div class="form-group"><label>การรับประกัน</label><input id="dev-m-warranty" type="text" placeholder="เช่น 1 ปี / 28/11/2026"></div>
-      <div class="form-group"><label>ราคา (บาท)</label><input id="dev-m-price" type="number" value="0" min="0"></div>
-    </div>
-    <div class="form-group"><label>สถานะ</label>
-      <select id="dev-m-status" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px">
-        <option value="active">ใช้งานปกติ</option>
-        <option value="transit">อุปกรณ์ส่วนกลาง</option>
-        <option value="inactive">เลิกใช้งาน</option>
-      </select>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1rem">
-      <button class="btn btn-secondary" onclick="closeDeviceModal()">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveDevice()">💾 บันทึก</button>
-    </div>
-  </div>
-</div>
-
-
-
 <!-- DEVICES -->
 <div id="sec-devices" class="section">
   <div class="page-hd">
@@ -3958,7 +3876,7 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
 
 <!-- DEVICE MODAL -->
 <div id="dev-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:10px;width:90%;max-width:640px;padding:1.5rem;max-height:90vh;overflow-y:auto">
+  <div style="background:rgba(17,24,39,0.95);border-radius:10px;width:90%;max-width:640px;padding:1.5rem;max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <h3 id="dev-modal-title" style="font-size:17px;font-weight:700">เพิ่มอุปกรณ์ใหม่</h3>
       <button onclick="closeDeviceModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">&times;</button>
@@ -3992,98 +3910,6 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
 </div>
 
 
-<!-- DEVICES -->
-<div id="sec-devices" class="section">
-  <div class="page-hd">
-    <div><h1>อุปกรณ์</h1><p>จัดการข้อมูลอุปกรณ์ IT ทั้งหมด</p></div>
-    <div class="page-acts"><button class="btn btn-primary" onclick="openAddDeviceModal()">+ เพิ่มอุปกรณ์</button></div>
-  </div>
-  <div class="card" style="padding:.75rem 1rem 1rem">
-    <div style="display:flex;gap:0;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:.75rem">
-      <button style="padding:6px 14px;border:none;border-bottom:2px solid #3b82f6;color:#3b82f6;background:none;cursor:pointer;font-size:13px">ชื่ออุปกรณ์</button>
-      <button style="padding:6px 14px;border:none;border-bottom:2px solid transparent;color:#6b7280;background:none;cursor:pointer;font-size:13px">ค้นหารหัสอุปกรณ์</button>
-      <button style="padding:6px 14px;border:none;border-bottom:2px solid transparent;color:#6b7280;background:none;cursor:pointer;font-size:13px">ค้นหาจาก หมวดหมู่ และ หน่วยงาน</button>
-      <button style="padding:6px 14px;border:none;border-bottom:2px solid transparent;color:#6b7280;background:none;cursor:pointer;font-size:13px">ประเภทอุปกรณ์</button>
-      <button style="padding:6px 14px;border:none;border-bottom:2px solid transparent;color:#6b7280;background:none;cursor:pointer;font-size:13px">ค้นหา ชื่อผู้ใช้งาน</button>
-      <button style="padding:6px 14px;border:none;border-bottom:2px solid transparent;color:#6b7280;background:none;cursor:pointer;font-size:13px">ข้อมูลการรับประกัน</button>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-      <div style="flex:1;min-width:180px">
-        <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:3px">ชื่ออุปกรณ์</label>
-        <input id="dev-q" type="text" placeholder="พิมพ์เพื่อค้นหา..." oninput="renderDevices()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">
-      </div>
-      <div style="min-width:160px">
-        <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:3px">สถานะ</label>
-        <select id="dev-status-filter" onchange="renderDevices()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:100%">
-          <option value="">ทั้งหมด</option>
-          <option value="active">ใช้งานปกติ</option>
-          <option value="transit">อุปกรณ์ส่วนกลาง</option>
-          <option value="inactive">เลิกใช้งาน</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" onclick="renderDevices()" style="padding:7px 16px">ค้นหา</button>
-    </div>
-  </div>
-  <div id="dev-stat-bar" style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:.5rem 0;align-items:center"></div>
-  <div id="dev-bulk-bar" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:.5rem">
-    <span style="font-size:13px;color:#6b7280">เลือก <strong id="dev-checked-count">0</strong> รายการ</span>
-    <button onclick="deleteSelectedDevices()" style="background:#dc2626;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px">๝ ลบรายการที่เลือก</button>
-    <button onclick="generateQRSelected()" style="background:#1e3a5f;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px">สร้าง QR Code เฉพาะรายการที่เลือก</button>
-  </div>
-  <div id="dev-count-txt" style="font-size:13px;color:#6b7280;margin-bottom:.5rem"></div>
-  <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead><tr style="background:#1e3a5f;color:#fff">
-        <th style="padding:10px 8px;width:36px"><input type="checkbox" onchange="document.querySelectorAll('.dev-chk').forEach(c=>c.checked=this.checked);updateDevBulkBar()"></th>
-        <th style="padding:10px 8px;width:70px"></th>
-        <th style="padding:10px 8px;text-align:left">รหัสอุปกรณ์</th>
-        <th style="padding:10px 8px;text-align:left">ชื่ออุปกรณ์</th>
-        <th style="padding:10px 8px;text-align:left">ยี่ห้อ / รุ่น</th>
-        <th style="padding:10px 8px;text-align:left">หน่วยงาน / แผนก</th>
-        <th style="padding:10px 8px;text-align:left">ผู้ใช้งาน / สถานที่ตั้ง</th>
-        <th style="padding:10px 8px;text-align:left">การรับประกัน</th>
-        <th style="padding:10px 8px;text-align:left">ราคา</th>
-        <th style="padding:10px 8px;width:80px"></th>
-      </tr></thead>
-      <tbody id="dev-tbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- DEVICE MODAL -->
-<div id="dev-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:10px;width:90%;max-width:640px;padding:1.5rem;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <h3 id="dev-modal-title" style="font-size:17px;font-weight:700">เพิ่มอุปกรณ์ใหม่</h3>
-      <button onclick="closeDeviceModal()" style="background:none;border:none;font-size:22px;cursor:pointer">&times;</button>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>รหัสอุปกรณ์ *</label><input id="dev-m-code" type="text" placeholder="004-001-MB0001"></div>
-      <div class="form-group"><label>ชื่ออุปกรณ์ *</label><input id="dev-m-name" type="text" placeholder="OPPO A17k"></div>
-      <div class="form-group"><label>ยี่ห้อ</label><input id="dev-m-brand" type="text" placeholder="OPPO/Dell/HP"></div>
-      <div class="form-group"><label>รุ่น</label><input id="dev-m-model" type="text" placeholder="A17k CPH2471"></div>
-      <div class="form-group"><label>ประเภทอุปกรณ์</label><input id="dev-m-type" type="text" placeholder="Mobile phone/Laptop"></div>
-      <div class="form-group"><label>ประเภทย่อย</label><input id="dev-m-subtype" type="text" placeholder="Mobile Android/Windows"></div>
-      <div class="form-group"><label>Serial Number</label><input id="dev-m-sn" type="text" placeholder="S/N"></div>
-      <div class="form-group"><label>หน่วยงาน / แผนก</label><input id="dev-m-dept" type="text"></div>
-      <div class="form-group"><label>ผู้ใช้งาน</label><input id="dev-m-user" type="text"></div>
-      <div class="form-group"><label>บริษัท / สถานที่</label><input id="dev-m-company" type="text"></div>
-      <div class="form-group"><label>การรับประกัน</label><input id="dev-m-warranty" type="text" placeholder="1 ปี / 28/11/2026"></div>
-      <div class="form-group"><label>ราคา (บาท)</label><input id="dev-m-price" type="number" value="0" min="0"></div>
-    </div>
-    <div class="form-group" style="margin-top:.75rem"><label>สถานะ</label>
-      <select id="dev-m-status" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px">
-        <option value="active">ใช้งานปกติ</option>
-        <option value="transit">อุปกรณ์ส่วนกลาง</option>
-        <option value="inactive">เลิกใช้งาน</option>
-      </select>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1.25rem">
-      <button class="btn btn-secondary" onclick="closeDeviceModal()">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveDevice()">บันทึก</button>
-    </div>
-  </div>
-</div>
 
 <!-- REPAIR -->
 <div id="sec-repair" class="section">
@@ -4420,7 +4246,7 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
           <option>HP</option><option>HR</option><option>Admin</option>
           <option>IT</option><option>RD</option><option>Weight</option>
           <option>Purchase</option><option>Shipping</option>
-          <option>Account</option><option>IT</option>
+          <option>Account</option>
         </select>
       </div>
     </div>
@@ -4529,6 +4355,6 @@ main{flex:1;padding:1.75rem 2rem;overflow-x:hidden;
     </div>
   </div>
 </div>
-
+<script src="api-client.js"></script>
 </body>
 </html>
