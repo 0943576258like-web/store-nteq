@@ -150,34 +150,23 @@ function _startPolling() {
   }, POLL_INTERVAL);
 }
 
+/* ── Core writer (stub — จริงอยู่ใน main script ด้านล่าง) ──────────────── */
+// window._SrpWriteData ถูก inject จาก main script block เพื่อเข้าถึง let variables โดยตรง
+function _writeData(d) {
+  if (typeof window._SrpWriteData === 'function') window._SrpWriteData(d);
+}
+
+
 /* ── Apply full snapshot จาก server ─────────────────────────────────────── */
 function _applyServerStore(s) {
   if (!s) return;
-
-  // server ว่าง → ไม่ overwrite localStorage ของเรา แต่เรียก restore
   if (_storeIsEmpty(s)) {
-    // ใช้ setTimeout เพื่อให้แน่ใจว่า currentUser set แล้ว
     setTimeout(_checkAndRestoreServer, 500);
     return;
   }
-
-  // ── BUGFIX: server มีข้อมูล → apply ทันทีโดยไม่เช็ค counter เก่า/ใหม่ ──
-  // server คือ source of truth เสมอ
   _suppressApply = true;
   try {
-    if (s.users          && Array.isArray(s.users))             { window.users          = s.users;          localStorage.setItem('srp_users',          JSON.stringify(s.users));          }
-    if (s.stock          && Array.isArray(s.stock))             { window.stockData      = s.stock;          localStorage.setItem('srp_stock',          JSON.stringify(s.stock));          }
-    if (s.requests       && Array.isArray(s.requests))          { window.requests       = s.requests;       localStorage.setItem('srp_requests',       JSON.stringify(s.requests));       }
-    if (s.repairs        && Array.isArray(s.repairs))           { window.repairs        = s.repairs;        localStorage.setItem('srp_repairs',        JSON.stringify(s.repairs));        }
-    if (s.devices        && Array.isArray(s.devices))           { window.deviceData     = s.devices;        localStorage.setItem('srp_devices',        JSON.stringify(s.devices));        }
-    if (s.settings       && typeof s.settings==='object')       { window.appSettings    = Object.assign({}, window.appSettings||{}, s.settings);       localStorage.setItem('srp_settings',       JSON.stringify(window.appSettings));       }
-    if (s.repairSettings && typeof s.repairSettings==='object') { window.repairSettings = Object.assign({}, window.repairSettings||{}, s.repairSettings); localStorage.setItem('srp_repair_settings', JSON.stringify(window.repairSettings)); }
-    if (s.counters       && typeof s.counters==='object') {
-      // ── BUGFIX: รับค่า counter จาก server โดยตรง (server ใช้ Math.max แล้ว) ──
-      if (s.counters.req    !== undefined) { window.reqCounter    = s.counters.req;    localStorage.setItem('srp_counter',        s.counters.req);    }
-      if (s.counters.repair !== undefined) { window.repairCounter = s.counters.repair; localStorage.setItem('srp_repair_counter', s.counters.repair); }
-      if (s.counters.device !== undefined)   window.deviceCounter = s.counters.device;
-    }
+    _writeData(s);
     if (window.currentUser) _refreshUI('all');
   } finally {
     _suppressApply = false;
@@ -189,18 +178,7 @@ function _applyPartial(p) {
   if (!p) return;
   _suppressApply = true;
   try {
-    if (p.users          && Array.isArray(p.users))             { window.users          = p.users;          localStorage.setItem('srp_users',          JSON.stringify(p.users));          }
-    if (p.stock          && Array.isArray(p.stock))             { window.stockData      = p.stock;          localStorage.setItem('srp_stock',          JSON.stringify(p.stock));          }
-    if (p.requests       && Array.isArray(p.requests))          { window.requests       = p.requests;       localStorage.setItem('srp_requests',       JSON.stringify(p.requests));       }
-    if (p.repairs        && Array.isArray(p.repairs))           { window.repairs        = p.repairs;        localStorage.setItem('srp_repairs',        JSON.stringify(p.repairs));        }
-    if (p.devices        && Array.isArray(p.devices))           { window.deviceData     = p.devices;        localStorage.setItem('srp_devices',        JSON.stringify(p.devices));        }
-    if (p.settings       && typeof p.settings==='object')       { window.appSettings    = Object.assign({}, window.appSettings||{}, p.settings);       localStorage.setItem('srp_settings',       JSON.stringify(window.appSettings));       }
-    if (p.repairSettings && typeof p.repairSettings==='object') { window.repairSettings = Object.assign({}, window.repairSettings||{}, p.repairSettings); localStorage.setItem('srp_repair_settings', JSON.stringify(window.repairSettings)); }
-    if (p.counters       && typeof p.counters==='object') {
-      if (p.counters.req    !== undefined) { window.reqCounter    = p.counters.req;    localStorage.setItem('srp_counter',        p.counters.req);    }
-      if (p.counters.repair !== undefined) { window.repairCounter = p.counters.repair; localStorage.setItem('srp_repair_counter', p.counters.repair); }
-      if (p.counters.device !== undefined)   window.deviceCounter = p.counters.device;
-    }
+    _writeData(p);
     if (window.currentUser) {
       const keys = Object.keys(p);
       if (keys.some(k => ['stock','requests','repairs','devices','users'].includes(k))) _refreshUI(keys);
@@ -293,6 +271,25 @@ function _updateSyncBadge(online) {
 </script>
 
 <script>
+
+// ═══════════════════════════════════════════════════════════════════════
+//  SYNC WRITER — ต้องอยู่ที่นี่เพื่อเข้าถึง let requests/stockData/repairs ฯลฯ
+//  (window._SrpWriteData ถูก invoke จาก SrpSync layer ด้านบน)
+// ═══════════════════════════════════════════════════════════════════════
+window._SrpWriteData = function(d) {
+  if (d.users          && Array.isArray(d.users))             { try { users          = d.users;                                              localStorage.setItem('srp_users',           JSON.stringify(d.users));          } catch(e){} }
+  if (d.stock          && Array.isArray(d.stock))             { try { stockData      = d.stock;                                              localStorage.setItem('srp_stock',           JSON.stringify(d.stock));          } catch(e){} }
+  if (d.requests       && Array.isArray(d.requests))          { try { requests       = d.requests;                                           localStorage.setItem('srp_requests',        JSON.stringify(d.requests));       } catch(e){} }
+  if (d.repairs        && Array.isArray(d.repairs))           { try { repairs        = d.repairs;                                            localStorage.setItem('srp_repairs',         JSON.stringify(d.repairs));        } catch(e){} }
+  if (d.devices        && Array.isArray(d.devices))           { try { deviceData     = d.devices;                                            localStorage.setItem('srp_devices',         JSON.stringify(d.devices));        } catch(e){} }
+  if (d.settings       && typeof d.settings==='object')       { try { appSettings    = Object.assign({}, appSettings||{}, d.settings);       localStorage.setItem('srp_settings',        JSON.stringify(appSettings));              } catch(e){} }
+  if (d.repairSettings && typeof d.repairSettings==='object') { try { repairSettings = Object.assign({}, repairSettings||{}, d.repairSettings); localStorage.setItem('srp_repair_settings', JSON.stringify(repairSettings));        } catch(e){} }
+  if (d.counters       && typeof d.counters==='object') {
+    if (d.counters.req    !== undefined) { try { reqCounter    = d.counters.req;    localStorage.setItem('srp_counter',        d.counters.req);    } catch(e){} }
+    if (d.counters.repair !== undefined) { try { repairCounter = d.counters.repair; localStorage.setItem('srp_repair_counter', d.counters.repair); } catch(e){} }
+    if (d.counters.device !== undefined) { try { deviceCounter = d.counters.device; } catch(e){} }
+  }
+};
 
 const PROD_EMOJI = {
   'กระดาษ':'','ปากกา':'','ดินสอ':'','ยางลบ':'','ไม้บรรทัด':'',
