@@ -742,6 +742,7 @@ function doLogin() {
     return;
   }
   currentUser = u;
+  window.currentUser = u; // expose to IIFE sync layer
   document.getElementById('screen-login').classList.add('hidden');
   document.getElementById('app-header').style.display = 'flex';
   document.getElementById('app-layout').style.display = 'flex';
@@ -758,6 +759,7 @@ function doLogout() {
   if (!confirm('ออกจากระบบ?')) return;
   save();
   currentUser = null;
+  window.currentUser = null;
   document.getElementById('screen-login').classList.remove('hidden');
   document.getElementById('app-header').style.display = 'none';
   document.getElementById('app-layout').style.display = 'none';
