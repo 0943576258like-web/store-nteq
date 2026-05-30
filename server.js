@@ -1,105 +1,158 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-const multer = require('multer'); // โหลดโมดูลสำหรับอัปโหลดไฟล์
-const { exec } = require('child_process');
+/**
+ * SRP IT Stock – Real-time Sync Server
+ * Express + WebSocket (ws) + JSON file persistence
+ * Deploy on Render.com (Free tier works fine)
+ */
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const express   = require('express');
+const http      = require('http');
+const WebSocket = require('ws');
+const fs        = require('fs');
+const path      = require('path');
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const app    = express();
+const server = http.createServer(app);
+const wss    = new WebSocket.Server({ server });
 
-// บังคับให้ระบบสามารถเข้าถึงไฟล์รูปภาพที่อัปโหลดเข้ามาได้ผ่าน URL
-app.use(express.static(path.join(__dirname)));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const PORT      = process.env.PORT || 3000;
+const DATA_FILE = path.join(__dirname, 'data', 'srp_data.json');
 
-// ตั้งค่าที่จัดเก็บไฟล์รูปภาพ (Disk Storage)
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadDir = path.join(__dirname, 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true }); // สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
-        }
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        // ตั้งชื่อไฟล์ใหม่โดยอิงจากเวลา เพื่อป้องกันไม่ให้ชื่อไฟล์ซ้ำกัน
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+// ─── ensure data directory exists ────────────────────────────────────────────
+if (!fs.existsSync(path.join(__dirname, 'data'))) {
+  fs.mkdirSync(path.join(__dirname, 'data'));
+}
+
+// ─── in-memory store ─────────────────────────────────────────────────────────
+let store = {
+  users:          null,   // null = use client DEFAULT until first save
+  stock:          null,
+  requests:       null,
+  repairs:        null,
+  devices:        null,
+  settings:       null,
+  repairSettings: null,
+  counters: { req: 6, repair: 4, device: 4 },
+  _savedAt: null,
+};
+
+// ─── load persisted data ──────────────────────────────────────────────────────
+function loadFromDisk() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf8');
+      store = Object.assign(store, JSON.parse(raw));
+      console.log('[SRP] Loaded data from disk, savedAt:', store._savedAt);
     }
-});
-const upload = multer({ storage: storage });
+  } catch (e) {
+    console.error('[SRP] Failed to load data file:', e.message);
+  }
+}
 
-// API ส่งไฟล์ข้อมูลให้หน้าบ้าน
-app.get('/content/home.json', (req, res) => res.sendFile(path.join(__dirname, 'home.json')));
-app.get('/content/data.json', (req, res) => res.sendFile(path.join(__dirname, 'data.json')));
-
-// API หลังบ้าน: ดึงข้อมูลรวมเพื่อนำไปกระจายลงฟอร์ม
-app.get('/api/admin/content', (req, res) => {
+// ─── save to disk (debounced 2 s) ────────────────────────────────────────────
+let _saveTimer = null;
+function saveToDisk() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
     try {
-        const homeData = JSON.parse(fs.readFileSync(path.join(__dirname, 'home.json'), 'utf8'));
-        res.json({ home: homeData });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: 'ไม่สามารถอ่านไฟล์ข้อมูลได้' });
+      store._savedAt = new Date().toISOString();
+      fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8');
+    } catch (e) {
+      console.error('[SRP] Failed to save data file:', e.message);
     }
-});
+  }, 2000);
+}
 
-// API หลังบ้าน: รับการแก้ไขเนื้อหาข้อความและไฟล์รูปภาพพร้อมกัน
-app.post('/api/admin/update-all', upload.single('imageFile'), (req, res) => {
-    try {
-        const homeFilePath = path.join(__dirname, 'home.json');
-        let currentData = {};
-
-        // 1. อ่านข้อมูลเดิมที่มีอยู่ในไฟล์ก่อน
-        if (fs.existsSync(homeFilePath)) {
-            currentData = JSON.parse(fs.readFileSync(homeFilePath, 'utf8'));
-        }
-
-        // 2. ปรับปรุงข้อมูลข้อความที่รับมาจากฟอร์มหลังบ้าน
-        currentData.title = req.body.title || currentData.title;
-        currentData.description = req.body.description || currentData.description;
-
-        // 3. ตรวจสอบว่ามีการอัปโหลดไฟล์รูปภาพใหม่เข้ามาไหม
-        if (req.file) {
-            // บันทึก Path ของรูปภาพใหม่ เช่น "/uploads/1716284...png" ไปยังฟิลด์ image
-            currentData.image = `/uploads/${req.file.filename}`;
-        }
-
-        // 4. เขียนข้อมูลเวอร์ชันอัปเดตกลับลงไปในไฟล์ home.json
-        fs.writeFile(homeFilePath, JSON.stringify(currentData, null, 2), 'utf8', (err) => {
-            if (err) {
-                return res.status(500).json({ status: 'error', message: 'การเขียนไฟล์ล้มเหลว' });
-            }
-            res.json({ 
-                status: 'success', 
-                message: 'อัปเดตข้อมูลและรูปภาพสำเร็จ!',
-                data: currentData
-            });
-        });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ status: 'error', message: 'เกิดข้อผิดพลาดบนเซิร์ฟเวอร์' });
+// ─── broadcast to all connected clients (except sender) ──────────────────────
+function broadcast(data, senderWs) {
+  const msg = JSON.stringify(data);
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN && client !== senderWs) {
+      client.send(msg);
     }
+  });
+}
+
+// ─── WebSocket handler ────────────────────────────────────────────────────────
+wss.on('connection', (ws, req) => {
+  const ip = req.socket.remoteAddress;
+  console.log(`[WS] Client connected: ${ip}  total=${wss.clients.size}`);
+
+  // Send current store snapshot to the newly connected client
+  ws.send(JSON.stringify({
+    type:    'init',
+    payload: store,
+  }));
+
+  ws.on('message', raw => {
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+
+    const { type, payload, clientRole } = msg;
+
+    // Only admin/manager/warehouse can push changes
+    const allowedRoles = ['admin', 'manager', 'warehouse'];
+    if (!allowedRoles.includes(clientRole)) return;
+
+    if (type === 'push') {
+      // Merge partial updates into store
+      if (payload.users)          store.users          = payload.users;
+      if (payload.stock)          store.stock          = payload.stock;
+      if (payload.requests)       store.requests       = payload.requests;
+      if (payload.repairs)        store.repairs        = payload.repairs;
+      if (payload.devices)        store.devices        = payload.devices;
+      if (payload.settings)       store.settings       = payload.settings;
+      if (payload.repairSettings) store.repairSettings = payload.repairSettings;
+      if (payload.counters)       store.counters       = Object.assign({}, store.counters, payload.counters);
+
+      console.log(`[WS] push from ${clientRole}@${ip}  keys=[${Object.keys(payload).join(',')}]`);
+
+      // Persist & broadcast
+      saveToDisk();
+      broadcast({ type: 'update', payload }, ws);
+    }
+  });
+
+  ws.on('close', () => {
+    console.log(`[WS] Client disconnected: ${ip}  total=${wss.clients.size}`);
+  });
+
+  ws.on('error', err => {
+    console.error('[WS] Error:', err.message);
+  });
 });
 
-// API ประมวลผลสคริปต์ Python ร่วมกับโปรเจกต์
-app.post('/api/process', (req, res) => {
-    const inputValue = req.body.value || 42;
-    exec(`python process.py ${inputValue}`, (error, stdout, stderr) => {
-        if (error) return res.status(500).json({ status: 'error', message: error.message });
-        try { res.json(JSON.parse(stdout)); } 
-        catch (e) { res.json({ status: 'success', raw_output: stdout.trim() }); }
-    });
+// ─── REST: serve index.html + health ─────────────────────────────────────────
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '10mb' }));
+
+// Health check (Render.com pings this)
+app.get('/health', (_, res) => res.json({ ok: true, clients: wss.clients.size, savedAt: store._savedAt }));
+
+// REST fallback – GET full store (for reconnect polling)
+app.get('/api/store', (_, res) => res.json(store));
+
+// REST fallback – POST partial update (if WS not available)
+app.post('/api/push', (req, res) => {
+  const { payload, clientRole } = req.body || {};
+  const allowedRoles = ['admin', 'manager', 'warehouse'];
+  if (!allowedRoles.includes(clientRole)) return res.status(403).json({ error: 'forbidden' });
+
+  if (payload.users)          store.users          = payload.users;
+  if (payload.stock)          store.stock          = payload.stock;
+  if (payload.requests)       store.requests       = payload.requests;
+  if (payload.repairs)        store.repairs        = payload.repairs;
+  if (payload.devices)        store.devices        = payload.devices;
+  if (payload.settings)       store.settings       = payload.settings;
+  if (payload.repairSettings) store.repairSettings = payload.repairSettings;
+  if (payload.counters)       store.counters       = Object.assign({}, store.counters, payload.counters);
+
+  saveToDisk();
+  broadcast({ type: 'update', payload }, null);
+  res.json({ ok: true });
 });
 
-// กำหนดเส้นทางแสดงผลหน้าจอเว็บ
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
-
-app.listen(PORT, () => {
-    console.log(`เซิร์ฟเวอร์หลังบ้านแบบฟูลฟังก์ชันรันที่: http://localhost:${PORT}`);
+// ─── start ────────────────────────────────────────────────────────────────────
+loadFromDisk();
+server.listen(PORT, () => {
+  console.log(`[SRP] Server listening on port ${PORT}`);
 });
