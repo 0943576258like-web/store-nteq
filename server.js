@@ -122,7 +122,7 @@ wss.on('connection', (ws, req) => {
 });
 
 // ─── REST: serve index.html + health ─────────────────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 app.use(express.json({ limit: '10mb' }));
 
 // Health check (Render.com pings this)
