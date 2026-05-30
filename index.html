@@ -15,139 +15,168 @@
 (function () {
 'use strict';
 
-/* ── Config ─────────────────────────────────────────────────────────────── */
-// ตรวจว่ารันบน localhost หรือ Render → เลือก WS URL อัตโนมัติ
-const _proto  = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const _wsURL  = _proto + '//' + location.host + '/';
-
-const RECONNECT_DELAY   = 3000;   // ms ก่อน reconnect
-const POLL_INTERVAL     = 30000;  // ms polling fallback (ถ้า WS ใช้ไม่ได้)
+/* ── Config ──────────────────────────────────────────────────────────────── */
+const _proto            = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const _wsURL            = _proto + '//' + location.host + '/';
+const RECONNECT_DELAY   = 3000;
+const POLL_INTERVAL     = 30000;
 const ROLES_CAN_PUSH    = ['admin','manager','warehouse'];
 
-/* ── State ──────────────────────────────────────────────────────────────── */
+/* ── State ───────────────────────────────────────────────────────────────── */
 let _ws            = null;
-let _wsOk          = false;        // WS เชื่อมสำเร็จแล้ว
-let _initReceived  = false;        // ได้รับ snapshot จาก server แล้ว
+let _wsOk          = false;
+let _initReceived  = false;
 let _reconnTimer   = null;
 let _pollTimer     = null;
-let _suppressApply = false;        // ป้องกัน apply loop ตอน push ออก
+let _suppressApply = false;
 
-/* ── Public namespace ───────────────────────────────────────────────────── */
+/* ── Public API ──────────────────────────────────────────────────────────── */
 window.SrpSync = {
-
-  /** เรียกหลังจาก login สำเร็จ (currentUser พร้อมแล้ว) */
-  connect: function () {
-    _connect();
-  },
-
-  /** เรียกจาก save(), saveRepairs(), saveDevices(), saveSettings()
-   *  ส่งข้อมูลที่เปลี่ยนไปยัง server เพื่อ broadcast ไปทุกเครื่อง
-   *  @param {Object} partial  { stock, requests, repairs, … }
-   */
-  push: function (partial) {
+  connect: function() { _connect(); },
+  push:    function(partial) {
     if (!window.currentUser) return;
     if (!ROLES_CAN_PUSH.includes(window.currentUser.role)) return;
     if (_suppressApply) return;
-
-    const msg = JSON.stringify({
-      type:       'push',
-      clientRole: window.currentUser.role,
-      payload:    partial,
-    });
-
-    if (_wsOk && _ws && _ws.readyState === WebSocket.OPEN) {
-      _ws.send(msg);
-    } else {
-      // REST fallback
-      fetch('/api/push', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          clientRole: window.currentUser.role,
-          payload:    partial,
-        }),
-      }).catch(() => {});
-    }
+    _send(partial);
   },
-
-  /** สถานะการเชื่อมต่อ (ใช้แสดง UI badge) */
-  status: function () {
-    return _wsOk ? 'online' : 'offline';
-  },
+  status: function() { return _wsOk ? 'online' : 'offline'; },
 };
 
-/* ── WebSocket core ─────────────────────────────────────────────────────── */
-function _connect() {
-  if (_ws) { try { _ws.close(); } catch (e) {} }
-
-  try {
-    _ws = new WebSocket(_wsURL);
-  } catch (e) {
-    console.warn('[Sync] WebSocket not supported, using REST polling');
-    _startPolling();
-    return;
+/* ── Send to server (WS → REST fallback) ─────────────────────────────────── */
+function _send(partial) {
+  const role = (window.currentUser || {}).role;
+  if (_wsOk && _ws && _ws.readyState === WebSocket.OPEN) {
+    _ws.send(JSON.stringify({ type:'push', clientRole: role, payload: partial }));
+  } else {
+    fetch('/api/push', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ clientRole: role, payload: partial }),
+    }).catch(() => {});
   }
+}
 
-  _ws.onopen = function () {
+/* ── WebSocket ───────────────────────────────────────────────────────────── */
+function _connect() {
+  if (_ws) { try { _ws.close(); } catch(e) {} }
+  // ── BUGFIX: reset _initReceived ทุกครั้งที่ reconnect เพื่อรับ snapshot ใหม่ ──
+  _initReceived = false;
+  try { _ws = new WebSocket(_wsURL); }
+  catch(e) { _startPolling(); return; }
+
+  _ws.onopen = function() {
     _wsOk = true;
-    if (_reconnTimer) { clearTimeout(_reconnTimer); _reconnTimer = null; }
-    if (_pollTimer)   { clearInterval(_pollTimer);  _pollTimer   = null; }
-    console.log('[Sync] WebSocket connected');
+    if (_reconnTimer) { clearTimeout(_reconnTimer);  _reconnTimer = null; }
+    if (_pollTimer)   { clearInterval(_pollTimer);   _pollTimer   = null; }
     _updateSyncBadge(true);
+    console.log('[Sync] WebSocket connected');
+    // ไม่เรียก _checkAndRestoreServer ที่นี่อีกต่อไป
+    // จะ restore เฉพาะตอนรับ init แล้วเห็นว่า server ว่างเท่านั้น
   };
 
-  _ws.onmessage = function (e) {
+  _ws.onmessage = function(e) {
     let msg;
     try { msg = JSON.parse(e.data); } catch { return; }
-
-    if (msg.type === 'init' && !_initReceived) {
+    if (msg.type === 'init') {
+      // ── BUGFIX: รับ init ทุกครั้ง (ไม่ skip ถ้าเคยรับไปแล้ว) ──
       _initReceived = true;
+      console.log('[Sync] init received, server empty:', _storeIsEmpty(msg.payload));
       _applyServerStore(msg.payload);
-      console.log('[Sync] init snapshot received');
     } else if (msg.type === 'update') {
       _applyPartial(msg.payload);
-      console.log('[Sync] update received  keys=[' + Object.keys(msg.payload).join(',') + ']');
     }
   };
 
-  _ws.onclose = function () {
+  _ws.onclose = function() {
     _wsOk = false;
     _updateSyncBadge(false);
-    console.warn('[Sync] WebSocket closed, reconnecting in', RECONNECT_DELAY, 'ms');
     _reconnTimer = setTimeout(_connect, RECONNECT_DELAY);
   };
 
-  _ws.onerror = function () {
-    _wsOk = false;
-    _updateSyncBadge(false);
-  };
+  _ws.onerror = function() { _wsOk = false; _updateSyncBadge(false); };
 }
 
-/* ── REST polling fallback (ถ้าไม่มี WS) ────────────────────────────────── */
+/* ── ตรวจว่า server store ว่างหรือไม่ ───────────────────────────────────── */
+function _storeIsEmpty(s) {
+  if (!s) return true;
+  return !s.requests && !s.stock && !s.repairs && !s.users;
+}
+
+/* ── Push ข้อมูลจาก localStorage กลับขึ้น server (กรณี server restart) ─── */
+function _checkAndRestoreServer() {
+  // ดึงจาก /api/store ก่อนเพื่อเช็คสถานะล่าสุด
+  fetch('/api/store').then(r => r.json()).then(function(s) {
+    if (!_storeIsEmpty(s)) return; // server มีข้อมูลแล้ว ไม่ต้อง restore
+
+    // role ต้องเป็น admin/manager/warehouse จึงจะ push ได้
+    if (!window.currentUser || !ROLES_CAN_PUSH.includes(window.currentUser.role)) return;
+
+    // ── BUGFIX: ตรวจว่า localStorage มีข้อมูล requests มากกว่า server จริงๆ ──
+    const payload = _buildPayloadFromLocalStorage();
+    if (!payload) return;
+    // ถ้า requests ใน localStorage น้อยกว่าหรือเท่ากับที่ server มี → ไม่ restore
+    const localReqCount = (payload.requests || []).length;
+    const serverReqCount = (s.requests || []).length;
+    if (localReqCount <= serverReqCount) return;
+
+    console.log('[Sync] Server empty → restoring from localStorage keys:', Object.keys(payload));
+    _send(payload);
+    if (typeof toast === 'function') toast('☁️ กู้ข้อมูลกลับ server เรียบร้อย', 'ok', 4000);
+  }).catch(() => {});
+}
+
+/* ── อ่านข้อมูลทั้งหมดจาก localStorage ─────────────────────────────────── */
+function _buildPayloadFromLocalStorage() {
+  try {
+    const p = {};
+    const u  = JSON.parse(localStorage.getItem('srp_users'));     if (u  && u.length)  p.users    = u;
+    const s  = JSON.parse(localStorage.getItem('srp_stock'));     if (s  && s.length)  p.stock    = s;
+    const r  = JSON.parse(localStorage.getItem('srp_requests'));  if (r  && r.length)  p.requests = r;
+    const rp = JSON.parse(localStorage.getItem('srp_repairs'));   if (rp && rp.length) p.repairs  = rp;
+    const d  = JSON.parse(localStorage.getItem('srp_devices'));   if (d  && d.length)  p.devices  = d;
+    const st = JSON.parse(localStorage.getItem('srp_settings'));  if (st) p.settings = st;
+    const rs = JSON.parse(localStorage.getItem('srp_repair_settings')); if (rs) p.repairSettings = rs;
+    const rc  = parseInt(localStorage.getItem('srp_counter'))        || 0;
+    const rpc = parseInt(localStorage.getItem('srp_repair_counter')) || 0;
+    if (rc || rpc) p.counters = { req: rc, repair: rpc };
+    return Object.keys(p).length ? p : null;
+  } catch(e) { return null; }
+}
+
+/* ── REST polling fallback ───────────────────────────────────────────────── */
 function _startPolling() {
-  _pollTimer = setInterval(function () {
-    fetch('/api/store').then(r => r.json()).then(function (data) {
-      _applyServerStore(data);
-    }).catch(() => {});
+  _pollTimer = setInterval(function() {
+    fetch('/api/store').then(r => r.json()).then(_applyServerStore).catch(() => {});
   }, POLL_INTERVAL);
 }
 
-/* ── Apply full server snapshot (init / first load) ────────────────────── */
+/* ── Apply full snapshot จาก server ─────────────────────────────────────── */
 function _applyServerStore(s) {
   if (!s) return;
+
+  // server ว่าง → ไม่ overwrite localStorage ของเรา แต่เรียก restore
+  if (_storeIsEmpty(s)) {
+    // ใช้ setTimeout เพื่อให้แน่ใจว่า currentUser set แล้ว
+    setTimeout(_checkAndRestoreServer, 500);
+    return;
+  }
+
+  // ── BUGFIX: server มีข้อมูล → apply ทันทีโดยไม่เช็ค counter เก่า/ใหม่ ──
+  // server คือ source of truth เสมอ
   _suppressApply = true;
   try {
-    // ใช้ข้อมูลจาก server ก็ต่อเมื่อมีข้อมูลจริง (ไม่ใช่ null)
-    if (s.users     && Array.isArray(s.users))     { window.users     = s.users;     localStorage.setItem('srp_users',    JSON.stringify(s.users));    }
-    if (s.stock     && Array.isArray(s.stock))     { window.stockData = s.stock;     localStorage.setItem('srp_stock',    JSON.stringify(s.stock));    }
-    if (s.requests  && Array.isArray(s.requests))  { window.requests  = s.requests;  localStorage.setItem('srp_requests', JSON.stringify(s.requests)); }
-    if (s.repairs   && Array.isArray(s.repairs))   { window.repairs   = s.repairs;   localStorage.setItem('srp_repairs',  JSON.stringify(s.repairs));  }
-    if (s.devices   && Array.isArray(s.devices))   { window.deviceData= s.devices;   localStorage.setItem('srp_devices',  JSON.stringify(s.devices));  }
-    if (s.settings  && typeof s.settings==='object'){ window.appSettings = Object.assign({}, window.appSettings||{}, s.settings); localStorage.setItem('srp_settings', JSON.stringify(window.appSettings)); }
-    if (s.counters  && typeof s.counters==='object'){
-      if (s.counters.req    > (window.reqCounter    ||0)) { window.reqCounter    = s.counters.req;    localStorage.setItem('srp_counter',        s.counters.req);    }
-      if (s.counters.repair > (window.repairCounter ||0)) { window.repairCounter = s.counters.repair; localStorage.setItem('srp_repair_counter', s.counters.repair); }
-      if (s.counters.device > (window.deviceCounter ||0)) { window.deviceCounter = s.counters.device; }
+    if (s.users          && Array.isArray(s.users))             { window.users          = s.users;          localStorage.setItem('srp_users',          JSON.stringify(s.users));          }
+    if (s.stock          && Array.isArray(s.stock))             { window.stockData      = s.stock;          localStorage.setItem('srp_stock',          JSON.stringify(s.stock));          }
+    if (s.requests       && Array.isArray(s.requests))          { window.requests       = s.requests;       localStorage.setItem('srp_requests',       JSON.stringify(s.requests));       }
+    if (s.repairs        && Array.isArray(s.repairs))           { window.repairs        = s.repairs;        localStorage.setItem('srp_repairs',        JSON.stringify(s.repairs));        }
+    if (s.devices        && Array.isArray(s.devices))           { window.deviceData     = s.devices;        localStorage.setItem('srp_devices',        JSON.stringify(s.devices));        }
+    if (s.settings       && typeof s.settings==='object')       { window.appSettings    = Object.assign({}, window.appSettings||{}, s.settings);       localStorage.setItem('srp_settings',       JSON.stringify(window.appSettings));       }
+    if (s.repairSettings && typeof s.repairSettings==='object') { window.repairSettings = Object.assign({}, window.repairSettings||{}, s.repairSettings); localStorage.setItem('srp_repair_settings', JSON.stringify(window.repairSettings)); }
+    if (s.counters       && typeof s.counters==='object') {
+      // ── BUGFIX: รับค่า counter จาก server โดยตรง (server ใช้ Math.max แล้ว) ──
+      if (s.counters.req    !== undefined) { window.reqCounter    = s.counters.req;    localStorage.setItem('srp_counter',        s.counters.req);    }
+      if (s.counters.repair !== undefined) { window.repairCounter = s.counters.repair; localStorage.setItem('srp_repair_counter', s.counters.repair); }
+      if (s.counters.device !== undefined)   window.deviceCounter = s.counters.device;
     }
     if (window.currentUser) _refreshUI('all');
   } finally {
@@ -155,29 +184,26 @@ function _applyServerStore(s) {
   }
 }
 
-/* ── Apply partial update (real-time push from another client) ──────────── */
+/* ── Apply partial update (real-time) ───────────────────────────────────── */
 function _applyPartial(p) {
   if (!p) return;
   _suppressApply = true;
   try {
-    if (p.users     && Array.isArray(p.users))     { window.users     = p.users;     localStorage.setItem('srp_users',    JSON.stringify(p.users));    }
-    if (p.stock     && Array.isArray(p.stock))     { window.stockData = p.stock;     localStorage.setItem('srp_stock',    JSON.stringify(p.stock));    }
-    if (p.requests  && Array.isArray(p.requests))  { window.requests  = p.requests;  localStorage.setItem('srp_requests', JSON.stringify(p.requests)); }
-    if (p.repairs   && Array.isArray(p.repairs))   { window.repairs   = p.repairs;   localStorage.setItem('srp_repairs',  JSON.stringify(p.repairs));  }
-    if (p.devices   && Array.isArray(p.devices))   { window.deviceData= p.devices;   localStorage.setItem('srp_devices',  JSON.stringify(p.devices));  }
-    if (p.settings  && typeof p.settings==='object'){ window.appSettings = Object.assign({}, window.appSettings||{}, p.settings); localStorage.setItem('srp_settings', JSON.stringify(window.appSettings)); }
-    if (p.counters  && typeof p.counters==='object'){
+    if (p.users          && Array.isArray(p.users))             { window.users          = p.users;          localStorage.setItem('srp_users',          JSON.stringify(p.users));          }
+    if (p.stock          && Array.isArray(p.stock))             { window.stockData      = p.stock;          localStorage.setItem('srp_stock',          JSON.stringify(p.stock));          }
+    if (p.requests       && Array.isArray(p.requests))          { window.requests       = p.requests;       localStorage.setItem('srp_requests',       JSON.stringify(p.requests));       }
+    if (p.repairs        && Array.isArray(p.repairs))           { window.repairs        = p.repairs;        localStorage.setItem('srp_repairs',        JSON.stringify(p.repairs));        }
+    if (p.devices        && Array.isArray(p.devices))           { window.deviceData     = p.devices;        localStorage.setItem('srp_devices',        JSON.stringify(p.devices));        }
+    if (p.settings       && typeof p.settings==='object')       { window.appSettings    = Object.assign({}, window.appSettings||{}, p.settings);       localStorage.setItem('srp_settings',       JSON.stringify(window.appSettings));       }
+    if (p.repairSettings && typeof p.repairSettings==='object') { window.repairSettings = Object.assign({}, window.repairSettings||{}, p.repairSettings); localStorage.setItem('srp_repair_settings', JSON.stringify(window.repairSettings)); }
+    if (p.counters       && typeof p.counters==='object') {
       if (p.counters.req    !== undefined) { window.reqCounter    = p.counters.req;    localStorage.setItem('srp_counter',        p.counters.req);    }
       if (p.counters.repair !== undefined) { window.repairCounter = p.counters.repair; localStorage.setItem('srp_repair_counter', p.counters.repair); }
       if (p.counters.device !== undefined)   window.deviceCounter = p.counters.device;
     }
     if (window.currentUser) {
-      // ตรวจว่า key ใดเปลี่ยน → refresh เฉพาะส่วนนั้น
       const keys = Object.keys(p);
-      if (keys.some(k => ['stock','requests','repairs','devices','users'].includes(k))) {
-        _refreshUI(keys);
-      }
-      // แจ้ง toast ให้ผู้ใช้รู้ว่ามีข้อมูลใหม่
+      if (keys.some(k => ['stock','requests','repairs','devices','users'].includes(k))) _refreshUI(keys);
       _syncToast(keys);
     }
   } finally {
