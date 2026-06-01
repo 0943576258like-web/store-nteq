@@ -2889,62 +2889,79 @@ function handleImportExcel(input) {
       const rows = XLSX.utils.sheet_to_json(ws, { header:1 });
       if (rows.length < 2) { toast('ไฟล์ไม่มีข้อมูล','warn'); return; }
       const headers = (rows[0]||[]).map(h=>String(h||'').toLowerCase().trim());
-      // map column indexes
+      function fi(...kws){ return headers.findIndex(h=>kws.some(k=>h.includes(k))); }
       const ci = {
-        id:    headers.findIndex(h=>h.includes('รหัส')||h==='id'),
-        name:  headers.findIndex(h=>h.includes('ชื่อ')||h==='name'),
-        cat:   headers.findIndex(h=>h.includes('หมวด')||h.includes('cat')),
-        unit:  headers.findIndex(h=>h.includes('หน่วย')||h==='unit'),
-        qty:   headers.findIndex(h=>h.includes('คงเหลือ')||h.includes('qty')||h.includes('จำนวน')),
-        min:   headers.findIndex(h=>h.includes('ขั้นต่ำ')||h.includes('min')),
+        id:fi('รหัสอุปกรณ์','รหัสสินค้า'),serial:fi('ซีเรียล','serial'),
+        brand:fi('ยี่ห้อ','brand'),model:fi('รุ่น','model'),
+        name:fi('ชื่ออุปกรณ์','ชื่อสินค้า','name'),
+        catCode:fi('รหัส หมวด','รหัสหมวด'),catName:fi('ชื่อหมวด','catname'),
+        typeCode:fi('รหัส ประเภท'),typeName:fi('ชื่อประเภท'),
+        deptCode:fi('รหัส หน่วยงาน','รหัสหน่วย'),deptName:fi('ชื่อหน่วยงาน','แผนก'),
+        userCode:fi('รหัส ผู้ใช้'),userName:fi('ผู้ใช้งาน'),
+        location:fi('สถานที่','location'),startDate:fi('วันเริ่ม'),endDate:fi('วันที่เลิก'),
+        price:fi('ราคา','price'),vendor:fi('ผู้ผลิด','ผู้จำหน่าย','vendor'),
+        warranty:fi('การรับประกัน','warranty'),warrantyExp:fi('วันที่หมดประกัน'),
+        docRef:fi('documents ref','doc ref'),status:fi('สถานะ','status'),
+        detail:fi('รายละเอียด','detail'),cpu:fi('ซีพียู','cpu','หน่วยประมวล'),
+        ram:fi('หน่วยความจำ','ram','memory'),display:fi('จอแสดงผล','display'),
+        hdd:fi('ฮาร์ดดิสก์','hdd','storage'),mouse:fi('เมาส์','mouse'),
+        keyboard:fi('คีย์บอร์ด','keyboard'),ip:fi('หมายเลขไอพี','ip address'),
+        mac:fi('mac address','mac'),ups:fi('ups'),
       };
+      function col(r,k){ return ci[k]>=0?String(r[ci[k]]||'').trim():''; }
       importExcelData = [];
-      for (let i=1; i<rows.length; i++) {
-        const r = rows[i];
-        if (!r || !r.length) continue;
-        const id   = ci.id   >= 0 ? String(r[ci.id]  ||'').trim() : 'IT'+String(stockData.length+i).padStart(3,'0');
-        const name = ci.name >= 0 ? String(r[ci.name]||'').trim() : '';
-        if (!name) continue;
+      for (let i=1;i<rows.length;i++) {
+        const r=rows[i]; if(!r||!r.length) continue;
+        const id=col(r,'id')||('IT'+String(stockData.length+i).padStart(3,'0'));
+        const name=col(r,'name')||col(r,'model')||'';
+        if(!name&&!id) continue;
+        const st=col(r,'status').toLowerCase();
         importExcelData.push({
-          id,
-          name,
-          cat:  ci.cat  >= 0 ? String(r[ci.cat] ||'อุปกรณ์ IT').trim() : 'อุปกรณ์ IT',
-          unit: ci.unit >= 0 ? String(r[ci.unit]||'ตัว').trim()        : 'ตัว',
-          qty:  ci.qty  >= 0 ? parseInt(r[ci.qty]) || 0 : 0,
-          min:  ci.min  >= 0 ? parseInt(r[ci.min]) || 1 : 1,
+          id,name,serial:col(r,'serial'),brand:col(r,'brand'),model:col(r,'model'),
+          cat:col(r,'catName')||col(r,'catCode')||'อุปกรณ์ IT',
+          typeName:col(r,'typeName')||col(r,'typeCode')||'',
+          dept:col(r,'deptName')||col(r,'deptCode')||'',
+          user:col(r,'userName')||col(r,'userCode')||'',
+          location:col(r,'location'),startDate:col(r,'startDate'),endDate:col(r,'endDate'),
+          price:col(r,'price'),vendor:col(r,'vendor'),warranty:col(r,'warranty'),
+          warrantyExp:col(r,'warrantyExp'),docRef:col(r,'docRef'),
+          status:(!st||st.includes('enable'))?'enable':'disable',
+          detail:col(r,'detail'),cpu:col(r,'cpu'),ram:col(r,'ram'),
+          display:col(r,'display'),hdd:col(r,'hdd'),mouse:col(r,'mouse'),
+          keyboard:col(r,'keyboard'),ip:col(r,'ip'),mac:col(r,'mac'),ups:col(r,'ups'),
+          unit:'ตัว',qty:1,min:1,
         });
       }
-      if (!importExcelData.length) { toast('ไม่พบข้อมูลในไฟล์','warn'); return; }
-      // show preview
-      const prev = document.getElementById('import-preview');
-      const tbl  = document.getElementById('import-preview-table');
-      const previewRows = importExcelData.slice(0,5);
-      tbl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead style="background:var(--bg-2)"><tr>
-          ${['รหัส','ชื่อ','หมวด','หน่วย','คงเหลือ','ขั้นต่ำ'].map(h=>`<th style="padding:6px 8px;border:1px solid var(--border);text-align:left">${h}</th>`).join('')}
-        </tr></thead>
-        <tbody>${previewRows.map(r=>`<tr>
-          ${[r.id,r.name,r.cat,r.unit,r.qty,r.min].map(v=>`<td style="padding:5px 8px;border:1px solid var(--border)">${v}</td>`).join('')}
-        </tr>`).join('')}</tbody>
-      </table>
-      ${importExcelData.length > 5 ? `<p style="font-size:11px;color:var(--text-muted);margin-top:4px">และอีก ${importExcelData.length-5} รายการ...</p>` : ''}`;
-      const btn = document.getElementById('import-confirm-btn');
-      if (btn) btn.textContent = `นำเข้า ${importExcelData.length} รายการ`;
-      prev.style.display = 'block';
+      if(!importExcelData.length){toast('ไม่พบข้อมูลในไฟล์','warn');return;}
+      const prev=document.getElementById('import-preview');
+      const tbl=document.getElementById('import-preview-table');
+      const COLS=[
+        {k:'id',l:'รหัสอุปกรณ์'},{k:'serial',l:'ซีเรียล'},{k:'brand',l:'ยี่ห้อ'},
+        {k:'model',l:'รุ่น'},{k:'name',l:'ชื่ออุปกรณ์'},{k:'cat',l:'หมวดหมู่'},
+        {k:'typeName',l:'ประเภท'},{k:'dept',l:'แผนก/หน่วยงาน'},{k:'user',l:'ผู้ใช้งาน'},
+        {k:'location',l:'สถานที่ติดตั้ง'},{k:'startDate',l:'วันเริ่มใช้'},
+        {k:'price',l:'ราคา'},{k:'vendor',l:'ผู้จำหน่าย'},{k:'warranty',l:'ประกัน'},
+        {k:'warrantyExp',l:'หมดประกัน'},{k:'status',l:'สถานะ'},{k:'detail',l:'รายละเอียด'},
+        {k:'cpu',l:'CPU'},{k:'ram',l:'RAM'},{k:'hdd',l:'HDD'},
+        {k:'ip',l:'IP'},{k:'mac',l:'Mac Address'},{k:'ups',l:'UPS'},
+      ];
+      tbl.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1200px">
+        <thead style="background:var(--bg-2)"><tr>${COLS.map(c=>`<th style="padding:6px 8px;border:1px solid var(--border);text-align:left;white-space:nowrap">${c.l}</th>`).join('')}</tr></thead>
+        <tbody>${importExcelData.slice(0,5).map(r=>`<tr>${COLS.map(c=>`<td style="padding:5px 8px;border:1px solid var(--border);white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${(r[c.k]||'').toString().replace(/"/g,'&quot;')}">${r[c.k]||''}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>${importExcelData.length>5?`<p style="font-size:11px;color:var(--text-muted);margin-top:4px">และอีก ${importExcelData.length-5} รายการ...</p>`:''}`;
+      const btn=document.getElementById('import-confirm-btn');
+      if(btn) btn.textContent=`นำเข้า ${importExcelData.length} รายการ`;
+      prev.style.display='block';
     } catch(err) {
-      toast('อ่านไฟล์ไม่ได้: ' + err.message, 'err');
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
+      toast('อ่านไฟล์ไม่ได้: ' + err.mess
 
 function confirmImportExcel() {
   if (!importExcelData.length) return;
   let added = 0, updated = 0;
   importExcelData.forEach(item => {
-    const existing = stockData.find(s=>s.id===item.id || s.name===item.name);
+    const existing = stockData.find(s=>s.id===item.id);
     if (existing) {
-      Object.assign(existing, { name:item.name, cat:item.cat, unit:item.unit, qty:item.qty, min:item.min });
+      Object.assign(existing, item);
       updated++;
     } else {
       stockData.push(item);
