@@ -20,7 +20,7 @@ const _proto            = location.protocol === 'https:' ? 'wss:' : 'ws:';
 const _wsURL            = _proto + '//' + location.host + '/';
 const RECONNECT_DELAY   = 3000;
 const POLL_INTERVAL     = 30000;
-const ROLES_CAN_PUSH    = ['admin','manager','warehouse'];
+const ROLES_CAN_PUSH    = ['admin'];
 
 /* ── State ───────────────────────────────────────────────────────────────── */
 let _ws            = null;
@@ -538,170 +538,171 @@ function loadSettings() {
 function saveSettings() {
   try {
     localStorage.setItem('srp_settings', JSON.stringify(appSettings));
-    if (window.SrpSync) SrpSync.push({ settings: appSettings });
+    window.users = users;
+  if (window.SrpSync) SrpSync.push({ settings: appSettings });
   } catch(e) {}
 }
 
-const ROLE_LABELS = { admin:'Admin', manager:'Manager', warehouse:'Warehouse', staff:'Staff' };
-const ROLE_BADGE  = { admin:'b-admin', manager:'b-manager', warehouse:'b-warehouse', staff:'b-staff' };
-const ROLE_COLORS = { admin:'#a78bfa', manager:'#60a5fa', warehouse:'#00c9a7', staff:'#8892a4' };
-const ROLE_BG     = { admin:'rgba(167,139,250,.15)', manager:'rgba(96,165,250,.15)', warehouse:'rgba(0,201,167,.12)', staff:'rgba(255,255,255,.06)' };
+const ROLE_LABELS = { admin:'Admin', user:'User' };
+const ROLE_BADGE  = { admin:'b-admin', user:'b-staff' };
+const ROLE_COLORS = { admin:'#a78bfa', user:'#8892a4' };
+const ROLE_BG     = { admin:'rgba(167,139,250,.15)', user:'rgba(255,255,255,.06)' };
 
 const PERMS = {
-  admin:    { req:true,  approve:true,  issue:true,  stock:true,  report:true, export:true, users:true },
-  manager:  { req:true,  approve:true,  issue:false, stock:false, report:true, export:true, users:false },
-  warehouse:{ req:true,  approve:false, issue:true,  stock:true,  report:false,export:true, users:false },
-  staff:    { req:true,  approve:false, issue:false, stock:false, report:false,export:false,users:false },
+  admin: { req:true,  approve:true,  issue:true,  stock:true,  report:true, export:true,  users:true, repairs:true, devices:true },
+  user:  { req:true,  approve:false, issue:false, stock:false, report:false, export:false, users:false, repairs:true, devices:false },
 };
 
 // ═══════════════════════════════════════
 //  DEFAULT DATA
 // ═══════════════════════════════════════
 const DEFAULT_USERS = [
-  { id:'u1', username:'walan.pungpong', pass:'1234', name:'walan  pungpong', emp:'walan.pungpong', email:'', position:'', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u2', username:'U1001', pass:'1234', name:'Administrator', emp:'U1001', email:'', position:'Administrator', deptCode:'1000', role:'admin', dept:'Administrator', active:true },
-  { id:'u3', username:'phut0126', pass:'1234', name:'Phuttipong Sopakayung', emp:'phut0126', email:'phuttipong.s@nteq-polymer.com', position:'Supervisor', deptCode:'1206', role:'staff', dept:'NTEQ-Maintenance', active:true },
-  { id:'u4', username:'mane1025', pass:'1234', name:'Maneerut Kingjan', emp:'mane1025', email:'maneerut.k@sv-polymer.com', position:'Supervisor', deptCode:'3005', role:'staff', dept:'SVP-HR', active:true },
-  { id:'u5', username:'9999', pass:'1234', name:'Chaipon Kerdvonbundit', emp:'9999', email:'kenneth@nteq-polymer.com', position:'MD', deptCode:'9999', role:'admin', dept:'NTEQ-Management', active:true },
-  { id:'u6', username:'9998', pass:'1234', name:'ngohtong', emp:'9998', email:'ngohtong@sv-polymer.com', position:'Manager', deptCode:'3003', role:'staff', dept:'SVP-Purchase', active:true },
-  { id:'u7', username:'50066', pass:'1234', name:'ramet lamkham', emp:'50066', email:'ramet.l@nteq-polymer.com', position:'Supervisor', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u8', username:'50062', pass:'1234', name:'Jiranan Phansio', emp:'50062', email:'', position:'Junior Supervisor', deptCode:'2004', role:'staff', dept:'NCT-QC', active:true },
-  { id:'u9', username:'50059', pass:'1234', name:'Tanyamas Kassupa', emp:'50059', email:'', position:'Junior Supervisor', deptCode:'2004', role:'staff', dept:'NCT-QC', active:true },
-  { id:'u10', username:'50058', pass:'1234', name:'Chalermporn Sriboon', emp:'50058', email:'', position:'Junior Supervisor', deptCode:'2004', role:'staff', dept:'NCT-QC', active:true },
-  { id:'u11', username:'50056', pass:'1234', name:'Witsunu  Chantee', emp:'50056', email:'', position:'Junior Supervisor', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u12', username:'50055', pass:'1234', name:'Natthaphong Bunchuai', emp:'50055', email:'', position:'Junior Supervisor', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u13', username:'50054', pass:'1234', name:'Mitaree  sansom', emp:'50054', email:'', position:'Junior Supervisor', deptCode:'2003', role:'staff', dept:'NCT-Purchase', active:true },
-  { id:'u14', username:'50053', pass:'1234', name:'Parichat Singau', emp:'50053', email:'', position:'Junior Supervisor', deptCode:'2004', role:'staff', dept:'NCT-QC', active:true },
-  { id:'u15', username:'50052', pass:'1234', name:'Kanyaphat Ainli', emp:'50052', email:'kany0323@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1209', role:'staff', dept:'NTEQ-Environment', active:true },
-  { id:'u16', username:'50051', pass:'1234', name:'Thanakon Khammungkhun', emp:'50051', email:'', position:'Junior Supervisor', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u17', username:'50046', pass:'1234', name:'Pachara  Saengped', emp:'50046', email:'', position:'Junior Supervisor', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u18', username:'50044', pass:'1234', name:'Supawit Matsopa', emp:'50044', email:'supa0721@nachitec.com', position:'Junior Supervisor', deptCode:'1201', role:'staff', dept:'NTEQ-Production', active:true },
-  { id:'u19', username:'50041', pass:'1234', name:'Nutsara Nachaengtai', emp:'50041', email:'account_6@nteq-polymer.com', position:'Supervisor l', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u20', username:'50039', pass:'1234', name:'Natthachai Janyai', emp:'50039', email:'nattachai@nachitec.com', position:'Senior Supervisor I', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u21', username:'50035', pass:'1234', name:'Raweewan Praposri', emp:'50035', email:'quality5@nachitec.com', position:'Assistant Manager', deptCode:'2004', role:'staff', dept:'NCT-QC', active:true },
-  { id:'u22', username:'50020', pass:'1234', name:'Chutchai Brumrong', emp:'50020', email:'chatchai@nachitec.com', position:'Assistant Mgr. I', deptCode:'1208', role:'staff', dept:'NTEQ-Safety', active:true },
-  { id:'u23', username:'50018', pass:'1234', name:'Wathapong Sama-arpat', emp:'50018', email:'wattapong@nachitec.com', position:'Senior Sup I', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u24', username:'50017', pass:'1234', name:'Anupong Buawson', emp:'50017', email:'anupong@nachitec.com', position:'Assistant Manager ll', deptCode:'2006', role:'staff', dept:'NCT-Factory', active:true },
-  { id:'u25', username:'50014', pass:'1234', name:'Duangmanee Sririkam', emp:'50014', email:'duangmani@nachitec.com', position:'Senior Supervisor I', deptCode:'2003', role:'staff', dept:'NCT-Purchase', active:true },
-  { id:'u26', username:'50009', pass:'1234', name:'Phichayapa Lekjing', emp:'50009', email:'hr@nachitec.com', position:'Supervisor ll', deptCode:'1107', role:'staff', dept:'NTEQ-HR&ADMIN', active:true },
-  { id:'u27', username:'50007', pass:'1234', name:'Ranuka Nasoke', emp:'50007', email:'purchase@nachitec.com', position:'Staff II', deptCode:'2003', role:'staff', dept:'NCT-Purchase', active:true },
-  { id:'u28', username:'30011', pass:'1234', name:'Phanuphong Chasuree', emp:'30011', email:'', position:'Supervisor II', deptCode:'1700', role:'staff', dept:'NTEQ-Technical', active:true },
-  { id:'u29', username:'11040', pass:'1234', name:'Gis@0124', emp:'11040', email:'nteqgis1@nteqpolymer.com', position:'supervisor', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u30', username:'10901', pass:'1234', name:'jittimaporn Dechprathum', emp:'10901', email:'Jittimaporn.d@nteq-polymer.com', position:'Supervisor', deptCode:'2005', role:'staff', dept:'NCT-Safety', active:true },
-  { id:'u31', username:'10900', pass:'1234', name:'Ratda Waifang', emp:'10900', email:'account_4@nteq-polymaer.com', position:'Senior Supervisor', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u32', username:'10862', pass:'1234', name:'Saowarotjanee Petnon', emp:'10862', email:'agronteq2@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u33', username:'10860', pass:'1234', name:'Sirinapharat Chokchai', emp:'10860', email:'', position:'Junior Supervisor', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u34', username:'10857', pass:'1234', name:'chaiwut tipwonsa', emp:'10857', email:'chaiwut.t@nteq-polymer.com', position:'Senior Supervisor ll', deptCode:'1204', role:'staff', dept:'NTEQ-DRY', active:true },
-  { id:'u35', username:'10846', pass:'1234', name:'Sommai Suksawat', emp:'10846', email:'', position:'Manager', deptCode:'1201', role:'staff', dept:'NTEQ-Production', active:true },
-  { id:'u36', username:'10845', pass:'1234', name:'Walaiphan Bunwong', emp:'10845', email:'', position:'Junior Supervisor', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u37', username:'10844', pass:'1234', name:'Natthaporn Wongnonglang', emp:'10844', email:'', position:'Junior Supervisor', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u38', username:'10842', pass:'1234', name:'Kiattisak Promlai', emp:'10842', email:'kiattisak.p@nachitec.com', position:'Junior Supervisor', deptCode:'2005', role:'staff', dept:'NCT-Safety', active:true },
-  { id:'u39', username:'10841', pass:'1234', name:'Suriyon Kingphetrungruang', emp:'10841', email:'', position:'CTO', deptCode:'9999', role:'staff', dept:'NTEQ-Management', active:true },
-  { id:'u40', username:'10839', pass:'1234', name:'Thiraphat Khaengrang', emp:'10839', email:'', position:'Junior supervisor', deptCode:'1203', role:'staff', dept:'NTEQ-Wet Line', active:true },
-  { id:'u41', username:'10831', pass:'1234', name:'Pitiporn wtttisen', emp:'10831', email:'quality6@nachitec.com', position:'Junior Supervisor', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u42', username:'10829', pass:'1234', name:'Rungtawan Nantapang', emp:'10829', email:'', position:'Junior Supervisor', deptCode:'1600', role:'staff', dept:'NTEQ-R&D', active:true },
-  { id:'u43', username:'10827', pass:'1234', name:'Chenchob Lamlert', emp:'10827', email:'', position:'Supervisor I', deptCode:'1204', role:'staff', dept:'NTEQ-DRY', active:true },
-  { id:'u44', username:'10821', pass:'1234', name:'chonthicha anan', emp:'10821', email:'', position:'Assignment Supervisor I', deptCode:'1003', role:'staff', dept:'NTEQ-BD', active:true },
-  { id:'u45', username:'10820', pass:'1234', name:'La-ongdao Sritonsa', emp:'10820', email:'hr@nteq-polymer.com', position:'Supervisor I', deptCode:'1107', role:'staff', dept:'NTEQ-HR&ADMIN', active:true },
-  { id:'u46', username:'10811', pass:'1234', name:'Warinthorn Thongsang', emp:'10811', email:'', position:'Manager', deptCode:'9999', role:'staff', dept:'NTEQ-Management', active:true },
-  { id:'u47', username:'10658', pass:'1234', name:'Paweenuch Khotsakhueng', emp:'10658', email:'', position:'Junior Supervisor', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u48', username:'10645', pass:'1234', name:'Chatchai  Ammukka', emp:'10645', email:'chat0624@nteq-polymer.com', position:'Supervisor I', deptCode:'1203', role:'staff', dept:'NTEQ-Wet Line', active:true },
-  { id:'u49', username:'10585', pass:'1234', name:'Rungnapa Sitthi', emp:'10585', email:'', position:'Junior Supervisor', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u50', username:'10558', pass:'1234', name:'Apisara Soongneun', emp:'10558', email:'', position:'Junior Supervisor', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u51', username:'10463', pass:'1234', name:'Tanapon Wongnaree', emp:'10463', email:'tanapol.w@nteq-polymer.com', position:'Supervisor I', deptCode:'1204', role:'staff', dept:'NTEQ-DRY', active:true },
-  { id:'u52', username:'10436', pass:'1234', name:'Pornwanut Manothum', emp:'10436', email:'pornwanut.m@nteq-polymer.com', position:'Junior supervisor', deptCode:'1600', role:'staff', dept:'NTEQ-R&D', active:true },
-  { id:'u53', username:'10421', pass:'1234', name:'Chalita Hima', emp:'10421', email:'', position:'Junior Supervisor', deptCode:'2001', role:'staff', dept:'NCT-Operation', active:true },
-  { id:'u54', username:'10413', pass:'1234', name:'Somchay Patmod', emp:'10413', email:'', position:'Junior Supervisor', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u55', username:'10411', pass:'1234', name:'Jirunan Kaewkhaw', emp:'10411', email:'', position:'Supervisor l', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u56', username:'10410', pass:'1234', name:'Sattawat Srechaiyo', emp:'10410', email:'', position:'Junior Supervisor', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u57', username:'10409', pass:'1234', name:'Sarawut Rakphung', emp:'10409', email:'', position:'Junior Supervisor', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u58', username:'10406', pass:'1234', name:'Kittiphong Obmasuy', emp:'10406', email:'', position:'Supervisor I', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u59', username:'10395', pass:'1234', name:'Pattarin Khotchakhueng', emp:'10395', email:'patt1122@nteq-polymer.com', position:'Supervisor I', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u60', username:'10391', pass:'1234', name:'Peerapon Jaitaing', emp:'10391', email:'', position:'Senior Supervisor I', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u61', username:'10384', pass:'1234', name:'Thidarat Netwong', emp:'10384', email:'account_8@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u62', username:'10371', pass:'1234', name:'Satakamon Promjuang', emp:'10371', email:'satakamon.p@sv-polymer.com', position:'Junior Supervisor', deptCode:'3008', role:'staff', dept:'SVP-RM', active:true },
-  { id:'u63', username:'10367', pass:'1234', name:'Supatchaya Promwong', emp:'10367', email:'marketing_nteq@nteq-polymer.com', position:'Assignment Manager', deptCode:'1501', role:'staff', dept:'NTEQ-Operation&Marketing', active:true },
-  { id:'u64', username:'10364', pass:'1234', name:'Rattaya Chananet', emp:'10364', email:'', position:'Assistant Manager', deptCode:'1107', role:'staff', dept:'NTEQ-HR&ADMIN', active:true },
-  { id:'u65', username:'10361', pass:'1234', name:'Yanisa Kongsi', emp:'10361', email:'marketing@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1501', role:'staff', dept:'NTEQ-Operation&Marketing', active:true },
-  { id:'u66', username:'10358', pass:'1234', name:'Pratchaya Pongwongprasert', emp:'10358', email:'prat0623@nteq-polymer.com', position:'Supervisor I', deptCode:'1206', role:'staff', dept:'NTEQ-Maintenance', active:true },
-  { id:'u67', username:'10355', pass:'1234', name:'Tanapan Kotti', emp:'10355', email:'tanapan.k@sv-polymer.com', position:'Junior Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u68', username:'10354', pass:'1234', name:'Pornpan Muangkhote', emp:'10354', email:'', position:'Assistant Manager', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u69', username:'10350', pass:'1234', name:'Wilawan Meeintha', emp:'10350', email:'wilawan.m@sv-polymer.com', position:'Supervisor', deptCode:'3005', role:'staff', dept:'SVP-HR', active:true },
-  { id:'u70', username:'10349', pass:'1234', name:'Arunthip Chompoorat', emp:'10349', email:'arunthip.c@nteq-polymer.com', position:'Senior Supervisor l', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u71', username:'10347', pass:'1234', name:'Worachade Khunthong', emp:'10347', email:'worachade.k@sv-polymer.com', position:'Senior Supervisor', deptCode:'3011', role:'staff', dept:'SVP-Technical', active:true },
-  { id:'u72', username:'10341', pass:'1234', name:'Supitcha Klaikham', emp:'10341', email:'supitcha.k@sv-polymer.com', position:'๋Junior Supervisor', deptCode:'3004', role:'staff', dept:'SVP-Account', active:true },
-  { id:'u73', username:'10340', pass:'1234', name:'Pitchaya Kamseeda', emp:'10340', email:'pitc0123@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u74', username:'10338', pass:'1234', name:'Saisamorn Khankhaeng', emp:'10338', email:'sais1222@nteq-polymer.com', position:'Supervisor l', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u75', username:'10333', pass:'1234', name:'Napaporn Roopngam', emp:'10333', email:'admin3@nteq-polymer.com', position:'Assistant Supervisor I', deptCode:'1107', role:'staff', dept:'NTEQ-HR&ADMIN', active:true },
-  { id:'u76', username:'10332', pass:'1234', name:'Riamsiri  Jaisook', emp:'10332', email:'prd_dc1@nteq-polymer.com', position:'Assistant Supervisor I', deptCode:'1208', role:'staff', dept:'NTEQ-Safety', active:true },
-  { id:'u77', username:'10326', pass:'1234', name:'Udomrak Suesat', emp:'10326', email:'account_5@nteq-polymer.com', position:'Senior Supervisor I', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u78', username:'10324', pass:'1234', name:'Chedsada Uantrai', emp:'10324', email:'', position:'Senior Supervisor l', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u79', username:'10320', pass:'1234', name:'Thanyarat changhiran', emp:'10320', email:'thanyarat.c@sv-polymer.com', position:'Junior Supervisor', deptCode:'3010', role:'staff', dept:'SVP-Shipping', active:true },
-  { id:'u80', username:'10318', pass:'1234', name:'Kavinnat Sripaengmon', emp:'10318', email:'kavinnat.s@sv-polymer.com', position:'Supervisor I', deptCode:'3008', role:'staff', dept:'SVP-RM', active:true },
-  { id:'u81', username:'10302', pass:'1234', name:'Thatsani Sangsuwan', emp:'10302', email:'account_7@nteq-polymer.com', position:'Supervisor I', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u82', username:'10300', pass:'1234', name:'Maliwan Bunrod', emp:'10300', email:'maliwan.b@nteq-polymer.com', position:'Manager', deptCode:'1107', role:'staff', dept:'NTEQ-HR&ADMIN', active:true },
-  { id:'u83', username:'10298', pass:'1234', name:'Parichat Nitisuk', emp:'10298', email:'pari0122@nteq-polymer.com', position:'Supervisor I', deptCode:'1107', role:'staff', dept:'NTEQ-HR&ADMIN', active:true },
-  { id:'u84', username:'10285', pass:'1234', name:'Khanitta Laotaew', emp:'10285', email:'account_2@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u85', username:'10280', pass:'1234', name:'Narongsak Khammoongkhun', emp:'10280', email:'naro0221@nteq-polymer.com', position:'Supervisor I', deptCode:'1206', role:'staff', dept:'NTEQ-Maintenance', active:true },
-  { id:'u86', username:'10279', pass:'1234', name:'Cherdsak Thongpa', emp:'10279', email:'cher0121@nteq-polymer.com', position:'Senior Supervisor Il', deptCode:'1700', role:'staff', dept:'NTEQ-Technical', active:true },
-  { id:'u87', username:'10275', pass:'1234', name:'Namthip Phakaphan', emp:'10275', email:'marketing_1@nteq-polymer.com', position:'Supervisor ll', deptCode:'1501', role:'staff', dept:'NTEQ-Operation&Marketing', active:true },
-  { id:'u88', username:'10249', pass:'1234', name:'Pongsathon  Pecharawach', emp:'10249', email:'', position:'Manager', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u89', username:'10234', pass:'1234', name:'Assakorn Chansrimuang', emp:'10234', email:'assa0219@nteq-polymer.com', position:'Supervisor II', deptCode:'1203', role:'staff', dept:'NTEQ-Wet Line', active:true },
-  { id:'u90', username:'10226', pass:'1234', name:'Saksakul Boonsankaew', emp:'10226', email:'technical@nteq-polymer.com', position:'Senior Supervisor II', deptCode:'1206', role:'staff', dept:'NTEQ-Maintenance', active:true },
-  { id:'u91', username:'10225', pass:'1234', name:'Akhaphon Butte', emp:'10225', email:'akha1118@nteq-polymer.com', position:'Senior Supervisor II', deptCode:'1204', role:'staff', dept:'NTEQ-DRY', active:true },
-  { id:'u92', username:'10213', pass:'1234', name:'Rattanawadee Jansong', emp:'10213', email:'ratt0618@nteq-polymer.com', position:'Assignments Manager', deptCode:'1003', role:'staff', dept:'NTEQ-BD', active:true },
-  { id:'u93', username:'10202', pass:'1234', name:'Yurada Phanurak', emp:'10202', email:'dccenter@nteq-polymer.com', position:'Manager', deptCode:'1003', role:'staff', dept:'NTEQ-BD', active:true },
-  { id:'u94', username:'10176', pass:'1234', name:'Supaporn Buakaew', emp:'10176', email:'supa0919@nteq-polymer.com', position:'Senior Supervisor Il', deptCode:'1209', role:'staff', dept:'NTEQ-Environment', active:true },
-  { id:'u95', username:'10159', pass:'1234', name:'Nobporn Chuklin', emp:'10159', email:'nobp0916@nteq-polymer.com', position:'Assistant Manager', deptCode:'1206', role:'staff', dept:'NTEQ-Maintenance', active:true },
-  { id:'u96', username:'10157', pass:'1234', name:'Phairot Thongdee', emp:'10157', email:'phairot@nteq-polymer.com', position:'Senior Supervisor II', deptCode:'1700', role:'staff', dept:'NTEQ-Technical', active:true },
-  { id:'u97', username:'10156', pass:'1234', name:'Thanakorn Sosan', emp:'10156', email:'thanakorn@nteq-polymer.com', position:'Assistant Manager', deptCode:'1109', role:'admin', dept:'NTEQ-IT', active:true },
-  { id:'u98', username:'10151', pass:'1234', name:'Ranee Tumnasuk', emp:'10151', email:'account_3@nteq-polymer.com', position:'Assistant Manager', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u99', username:'10149', pass:'1234', name:'Waranya Srikaew', emp:'10149', email:'warunya@nteq-polymer.com', position:'Senior Supervisor I', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u100', username:'10130', pass:'1234', name:'Chairat Jaitrong', emp:'10130', email:'chai1115@nteq-polymer.com', position:'Senior Supervisor II', deptCode:'1700', role:'staff', dept:'NTEQ-Technical', active:true },
-  { id:'u101', username:'10119', pass:'1234', name:'Pattra Saphoo', emp:'10119', email:'pattra@nteq-polymer.com', position:'Assistant Manager', deptCode:'1600', role:'staff', dept:'NTEQ-R&D', active:true },
-  { id:'u102', username:'10114', pass:'1234', name:'Supparerk Kwanthaisong', emp:'10114', email:'supparerk.k@nteq-polymer.com', position:'Assistant Manager', deptCode:'1700', role:'staff', dept:'NTEQ-Technical', active:true },
-  { id:'u103', username:'10109', pass:'1234', name:'Anongluk Rattanachaisiriwat', emp:'10109', email:'safety@nteq-polymer.com', position:'Manager', deptCode:'1208', role:'staff', dept:'NTEQ-Safety', active:true },
-  { id:'u104', username:'10103', pass:'1234', name:'Apidech Thongsom', emp:'10103', email:'apid0814@nteq-polymer.com', position:'Senior Supervisor II', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u105', username:'10098', pass:'1234', name:'Ratchapol Siriboon', emp:'10098', email:'AGRO@NTEQ-POLYMER.COM', position:'Manager', deptCode:'1111', role:'staff', dept:'NTEQ-Sustainability', active:true },
-  { id:'u106', username:'10090', pass:'1234', name:'Parichat Sriprasert', emp:'10090', email:'purchase@nteq-polymer.com', position:'Supervisor II', deptCode:'1104', role:'staff', dept:'NTEQ-Purchase&Raw material', active:true },
-  { id:'u107', username:'10061', pass:'1234', name:'Montira Pubutta', emp:'10061', email:'operation_1@nteq-polymer.com', position:'Manager', deptCode:'1501', role:'staff', dept:'NTEQ-Operation&Marketing', active:true },
-  { id:'u108', username:'10050', pass:'1234', name:'Hathaichanok Tonkaew', emp:'10050', email:'hata0912@nteq-polymer.com', position:'Assistant Manager', deptCode:'1201', role:'staff', dept:'NTEQ-Production', active:true },
-  { id:'u109', username:'10029', pass:'1234', name:'Piyanuch Khotaraviang', emp:'10029', email:'quality@nteq-polymer.com', position:'Manager', deptCode:'1207', role:'staff', dept:'NTEQ-Quality Control', active:true },
-  { id:'u110', username:'10026', pass:'1234', name:'Poranut Janrustana', emp:'10026', email:'project@nteq-polymer.com', position:'Manager', deptCode:'1206', role:'staff', dept:'NTEQ-Maintenance', active:true },
-  { id:'u111', username:'10003', pass:'1234', name:'Penpisut Jaro', emp:'10003', email:'account_1@nteq-polymer.com', position:'Manager', deptCode:'1009', role:'staff', dept:'NTEQ-Accounting&Finance', active:true },
-  { id:'u112', username:'10002', pass:'1234', name:'Somnuek Sae-ngow', emp:'10002', email:'somnuek@nteq-polymer.com', position:'Senior Manager', deptCode:'9999', role:'staff', dept:'NTEQ-Management', active:true },
-  { id:'u113', username:'0610548', pass:'1234', name:'Kittiphon Phonphankwan', emp:'0610548', email:'kittiphon.p@nteq-polymer.com', position:'', deptCode:'1209', role:'staff', dept:'NTEQ-Environment', active:true },
-  { id:'u114', username:'0610051', pass:'1234', name:'Srivikorn Sophakun', emp:'0610051', email:'srivikorn.s@sv-polymer.com', position:'Junior Supervisor', deptCode:'3006', role:'staff', dept:'SVP-NY', active:true },
-  { id:'u115', username:'0510069', pass:'1234', name:'Srisuda   Bunkamned', emp:'0510069', email:'srisuda.b@sv-polymer.com', position:'Junior Supervisor', deptCode:'3007', role:'staff', dept:'SVP-QC', active:true },
-  { id:'u116', username:'0510068', pass:'1234', name:'Phitsini Yonplio', emp:'0510068', email:'phitsini.y@sv-polymer.com', position:'Junior Supervisor', deptCode:'3007', role:'staff', dept:'SVP-QC', active:true },
-  { id:'u117', username:'0510050', pass:'1234', name:'Supaporn Nantawong', emp:'0510050', email:'supaporn.n@sv-polymer.com', position:'Junior Supervisor', deptCode:'3007', role:'staff', dept:'SVP-QC', active:true },
-  { id:'u118', username:'0510049', pass:'1234', name:'Anongnart Khotsa', emp:'0510049', email:'anongnart.k@sv-polymer.com', position:'Junior Supervisor', deptCode:'3007', role:'staff', dept:'SVP-QC', active:true },
-  { id:'u119', username:'0510042', pass:'1234', name:'Anekpong Sonyeam', emp:'0510042', email:'anekpong.s@sv-polymer.com', position:'Junior Supervisor', deptCode:'3007', role:'staff', dept:'SVP-QC', active:true },
-  { id:'u120', username:'0410902', pass:'1234', name:'Yutthana Saengkla', emp:'0410902', email:'yutthana.s@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1201', role:'staff', dept:'NTEQ-Production', active:true },
-  { id:'u121', username:'0410901', pass:'1234', name:'Permsak Aggalab', emp:'0410901', email:'permsak.a@nteq-polymer.com', position:'BD Technical Asst. Manager', deptCode:'1700', role:'staff', dept:'NTEQ-Technical', active:true },
-  { id:'u122', username:'0410865', pass:'1234', name:'Sunthon Sitthikankaew', emp:'0410865', email:'sunthon.s@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1201', role:'staff', dept:'NTEQ-Production', active:true },
-  { id:'u123', username:'0410864', pass:'1234', name:'Nutchinee Sabai', emp:'0410864', email:'nutchinee.s@nteq-polymer.com', position:'Junior Supervisor', deptCode:'1203', role:'staff', dept:'NTEQ-Wet Line', active:true },
-  { id:'u124', username:'0410072', pass:'1234', name:'Aphichat Roddeepeng', emp:'0410072', email:'aphichat.r@sv-polymer.com', position:'Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u125', username:'0410067', pass:'1234', name:'Chaisak Jaemdara', emp:'0410067', email:'svp.technical01@sv-polymer.com', position:'Junior Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u126', username:'0410066', pass:'1234', name:'Peeraphat Suebpanya', emp:'0410066', email:'', position:'๋Junior Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u127', username:'0410065', pass:'1234', name:'Oraya Nim-on', emp:'0410065', email:'svp.production03@sv-polymer.com', position:'Junior Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u128', username:'0410057', pass:'1234', name:'Theerawut Auyuen', emp:'0410057', email:'svp.production01@sv-polymer.com', position:'Junior Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u129', username:'0410053', pass:'1234', name:'Thanakorn Pholthip', emp:'0410053', email:'thanakorn.p@sv-polymer.com', position:'Junior Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u130', username:'0410047', pass:'1234', name:'Worramet Pongthao', emp:'0410047', email:'svp.production02@sv-polymer.com', position:'Junior Supervisor', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u131', username:'0410044', pass:'1234', name:'Pittayut Sirijaroen', emp:'0410044', email:'pittayut.s@sv-polymer.com', position:'Supervisor I', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u132', username:'0410034', pass:'1234', name:'Nattawut Inmankong', emp:'0410034', email:'svp.smaintance@sv-polymer.com', position:'Senior Supervisor I', deptCode:'3002', role:'staff', dept:'SVP-Production', active:true },
-  { id:'u133', username:'0310061', pass:'1234', name:'Praphatsorn Nilkhamnerd', emp:'0310061', email:'praphatsorn.n@sv-polymer.com', position:'Junior Supervisor', deptCode:'3005', role:'staff', dept:'SVP-HR', active:true },
-  { id:'u134', username:'0310052', pass:'1234', name:'Anantaya Baokeaw', emp:'0310052', email:'anantaya.b@sv-polymer.com', position:'Junior Supervisor', deptCode:'3004', role:'staff', dept:'SVP-Account', active:true },
-  { id:'u135', username:'0110060', pass:'1234', name:'Benjamas Loedsakrai', emp:'0110060', email:'benjamas.l@sv-polymer.com', position:'Senior Supervisor', deptCode:'3004', role:'staff', dept:'SVP-Account', active:true },
-  { id:'u136', username:'0110059', pass:'1234', name:'Nitchanan Muangjan', emp:'0110059', email:'nitchanan.m@sv-polymer.com', position:'Junior Supervisor', deptCode:'3008', role:'staff', dept:'SVP-RM', active:true },
-  { id:'u137', username:'0110056', pass:'1234', name:'Kannaphat Thiamsanit', emp:'0110056', email:'kannaphat.t@sv-polymer.com', position:'Manager', deptCode:'3004', role:'staff', dept:'SVP-Account', active:true },
-  { id:'u138', username:'0110048', pass:'1234', name:'Patcharaporn Phasom', emp:'0110048', email:'patcharaporn.p@sv-polymer.com', position:'Supervisor I', deptCode:'3003', role:'staff', dept:'SVP-Purchase', active:true },
-  { id:'u139', username:'0110041', pass:'1234', name:'Jaruwan Piajan', emp:'0110041', email:'jaruwan.p@sv-polymer.com', position:'Supervisor II', deptCode:'3008', role:'staff', dept:'SVP-RM', active:true },
-  { id:'u140', username:'0110040', pass:'1234', name:'Titaporn Maneesarn', emp:'0110040', email:'marketing_svp01@sv-polymer.com', position:'Assistant Manager', deptCode:'3010', role:'staff', dept:'SVP-Shipping', active:true },
-  { id:'u141', username:'0110037', pass:'1234', name:'Naruwan Eiamsongkarm', emp:'0110037', email:'naruwan.e@sv-polymer.com', position:'Junior Supervisor', deptCode:'3004', role:'staff', dept:'SVP-Account', active:true },
-  { id:'u142', username:'0110032', pass:'1234', name:'Chayanit Oiamjaroenwat', emp:'0110032', email:'chayanit.o@sv-polymer.com', position:'Junior Supervisor', deptCode:'3003', role:'staff', dept:'SVP-Purchase', active:true },
-  { id:'u143', username:'0110031', pass:'1234', name:'Thawatchai Rueanin', emp:'0110031', email:'thawatchai.r@sv-polymer.com', position:'Jr. Supervisor', deptCode:'3001', role:'admin', dept:'SVP-IT', active:true },
-  { id:'u144', username:'0001', pass:'1234', name:'Anutsara Chuipon', emp:'0001', email:'support03@itdigitserve.com', position:'IT', deptCode:'1109', role:'staff', dept:'NTEQ-IT', active:true },
+  { id:'u1',    username:'admin',         pass:'1234',    name:'คุณวิภา ผู้ดูแลระบบ',            emp:'EMP-001', email:'',                               position:'Admin',                        role:'admin',    dept:'Admin',                        active:true },
+  { id:'u_k9999',  username:'kenneth',       pass:'1234',    name:'Chaipon Kerdvonbundit',           emp:'9999',    email:'kenneth@nteq-polymer.com',        position:'MD',                           role:'admin',    dept:'NTEQ-Management',              active:true },
+  { id:'u_k9998',  username:'ngohtong',      pass:'1234',    name:'ngohtong',                        emp:'9998',    email:'ngohtong@sv-polymer.com',         position:'Manager',                      role:'user',  dept:'SVP-Purchase',                 active:true },
+  { id:'u_k10156', username:'thanakorn',     pass:'1234',    name:'Thanakorn Sosan',                 emp:'10156',   email:'thanakorn@nteq-polymer.com',      position:'Assistant Manager',            role:'admin',    dept:'NTEQ-IT',                      active:true },
+  { id:'u_k0001',  username:'anutsara',      pass:'1234',    name:'Anutsara Chuipon',                emp:'0001',    email:'support03@itdigitserve.com',      position:'IT',                           role:'user',dept:'NTEQ-IT',                      active:true },
+  { id:'u_k0110031',username:'thawatchai',   pass:'1234',    name:'Thawatchai Rueanin',              emp:'0110031', email:'thawatchai.r@sv-polymer.com',     position:'Jr. Supervisor',               role:'admin',    dept:'SVP-IT',                       active:true },
+  { id:'u_k10300', username:'maliwan',       pass:'1234',    name:'Maliwan Bunrod',                  emp:'10300',   email:'maliwan.b@nteq-polymer.com',      position:'Manager',                      role:'user',  dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k50041', username:'nutsara',       pass:'1234',    name:'Nutsara Nachaengtai',             emp:'50041',   email:'account_6@nteq-polymer.com',      position:'Supervisor l',                 role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_kwalan',  username:'walan',         pass:'1234',    name:'walan pungpong',                  emp:'walan.pungpong', email:'',                         position:'',                             role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_kphut0126',username:'phuttipong',  pass:'1234',    name:'Phuttipong Sopakayung',           emp:'phut0126',email:'phuttipong.s@nteq-polymer.com',  position:'Supervisor',                   role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_kmane1025',username:'maneerut',    pass:'1234',    name:'Maneerut Kingjan',                emp:'mane1025',email:'maneerut.k@sv-polymer.com',      position:'Supervisor',                   role:'user',    dept:'SVP-HR',                       active:true },
+  { id:'u_k50066', username:'ramet',          pass:'1234',    name:'ramet lamkham',                   emp:'50066',   email:'ramet.l@nteq-polymer.com',        position:'Supervisor',                   role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50062', username:'jiranan',        pass:'1234',    name:'Jiranan Phansio',                 emp:'50062',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
+  { id:'u_k50059', username:'tanyamas',       pass:'1234',    name:'Tanyamas Kassupa',                emp:'50059',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
+  { id:'u_k50058', username:'chalermporn',    pass:'1234',    name:'Chalermporn Sriboon',             emp:'50058',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
+  { id:'u_k50056', username:'witsunu',        pass:'1234',    name:'Witsunu Chantee',                 emp:'50056',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50055', username:'natthaphong',    pass:'1234',    name:'Natthaphong Bunchuai',            emp:'50055',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50054', username:'mitaree',        pass:'1234',    name:'Mitaree sansom',                  emp:'50054',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Purchase',                 active:true },
+  { id:'u_k50053', username:'parichat_s',     pass:'1234',    name:'Parichat Singau',                 emp:'50053',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
+  { id:'u_k50052', username:'kanyaphat',      pass:'1234',    name:'Kanyaphat Ainli',                 emp:'50052',   email:'kany0323@nteq-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Environment',             active:true },
+  { id:'u_k50051', username:'thanakon',       pass:'1234',    name:'Thanakon Khammungkhun',           emp:'50051',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50046', username:'pachara',        pass:'1234',    name:'Pachara Saengped',                emp:'50046',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50044', username:'supawit',        pass:'1234',    name:'Supawit Matsopa',                 emp:'50044',   email:'supa0721@nachitec.com',           position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k50039', username:'natthachai',     pass:'1234',    name:'Natthachai Janyai',               emp:'50039',   email:'nattachai@nachitec.com',          position:'Senior Supervisor I',          role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50035', username:'raweewan',       pass:'1234',    name:'Raweewan Praposri',               emp:'50035',   email:'quality5@nachitec.com',           position:'Assistant Manager',            role:'user',    dept:'NCT-QC',                       active:true },
+  { id:'u_k50020', username:'chutchai',       pass:'1234',    name:'Chutchai Brumrong',               emp:'50020',   email:'chatchai@nachitec.com',           position:'Assistant Mgr. I',             role:'user',    dept:'NTEQ-Safety',                  active:true },
+  { id:'u_k50018', username:'wathapong',      pass:'1234',    name:'Wathapong Sama-arpat',            emp:'50018',   email:'wattapong@nachitec.com',          position:'Senior Sup I',                 role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50017', username:'anupong',        pass:'1234',    name:'Anupong Buawson',                 emp:'50017',   email:'anupong@nachitec.com',            position:'Assistant Manager ll',         role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50014', username:'duangmanee',     pass:'1234',    name:'Duangmanee Sririkam',             emp:'50014',   email:'duangmani@nachitec.com',          position:'Senior Supervisor I',          role:'user',    dept:'NCT-Purchase',                 active:true },
+  { id:'u_k50009', username:'phichayapa',     pass:'1234',    name:'Phichayapa Lekjing',              emp:'50009',   email:'hr@nachitec.com',                 position:'Supervisor ll',                role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k50007', username:'ranuka',         pass:'1234',    name:'Ranuka Nasoke',                   emp:'50007',   email:'purchase@nachitec.com',           position:'Staff II',                     role:'user',    dept:'NCT-Purchase',                 active:true },
+  { id:'u_k30011', username:'phanuphong',     pass:'1234',    name:'Phanuphong Chasuree',             emp:'30011',   email:'',                                position:'Supervisor II',                role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k11040', username:'gis',            pass:'1234',    name:'Gis',                             emp:'11040',   email:'nteqgis1@nteqpolymer.com',        position:'supervisor',                   role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10901', username:'jittimaporn',    pass:'1234',    name:'jittimaporn Dechprathum',         emp:'10901',   email:'Jittimaporn.d@nteq-polymer.com',  position:'Supervisor',                   role:'user',    dept:'NCT-Safety',                   active:true },
+  { id:'u_k10900', username:'ratda',          pass:'1234',    name:'Ratda Waifang',                   emp:'10900',   email:'account_4@nteq-polymaer.com',     position:'Senior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10862', username:'saowarotjanee',  pass:'1234',    name:'Saowarotjanee Petnon',            emp:'10862',   email:'agronteq2@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10860', username:'sirinapharat',   pass:'1234',    name:'Sirinapharat Chokchai',           emp:'10860',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10857', username:'chaiwut',        pass:'1234',    name:'chaiwut tipwonsa',                emp:'10857',   email:'chaiwut.t@nteq-polymer.com',      position:'Senior Supervisor ll',         role:'user',    dept:'NTEQ-DRY',                     active:true },
+  { id:'u_k10846', username:'sommai',         pass:'1234',    name:'Sommai Suksawat',                 emp:'10846',   email:'',                                position:'Manager',                      role:'user',  dept:'NTEQ-Production',              active:true },
+  { id:'u_k10845', username:'walaiphan',      pass:'1234',    name:'Walaiphan Bunwong',               emp:'10845',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10844', username:'natthaporn',     pass:'1234',    name:'Natthaporn Wongnonglang',         emp:'10844',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10842', username:'kiattisak',      pass:'1234',    name:'Kiattisak Promlai',               emp:'10842',   email:'kiattisak.p@nachitec.com',        position:'Junior Supervisor',            role:'user',    dept:'NCT-Safety',                   active:true },
+  { id:'u_k10841', username:'suriyon',        pass:'1234',    name:'Suriyon Kingphetrungruang',       emp:'10841',   email:'',                                position:'CTO',                          role:'user',  dept:'NTEQ-Management',              active:true },
+  { id:'u_k10839', username:'thiraphat',      pass:'1234',    name:'Thiraphat Khaengrang',            emp:'10839',   email:'',                                position:'Junior supervisor',            role:'user',    dept:'NTEQ-Wet Line',                active:true },
+  { id:'u_k10831', username:'pitiporn',       pass:'1234',    name:'Pitiporn wtttisen',               emp:'10831',   email:'quality6@nachitec.com',           position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10829', username:'rungtawan',      pass:'1234',    name:'Rungtawan Nantapang',             emp:'10829',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-R&D',                     active:true },
+  { id:'u_k10827', username:'chenchob',       pass:'1234',    name:'Chenchob Lamlert',                emp:'10827',   email:'',                                position:'Supervisor I',                 role:'user',    dept:'NTEQ-DRY',                     active:true },
+  { id:'u_k10821', username:'chonthicha',     pass:'1234',    name:'chonthicha anan',                 emp:'10821',   email:'',                                position:'Assignment Supervisor I',      role:'user',    dept:'NTEQ-BD',                      active:true },
+  { id:'u_k10820', username:'laongdao',       pass:'1234',    name:'La-ongdao Sritonsa',              emp:'10820',   email:'hr@nteq-polymer.com',             position:'Supervisor I',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k10811', username:'warinthorn',     pass:'1234',    name:'Warinthorn Thongsang',            emp:'10811',   email:'',                                position:'Manager',                      role:'user',  dept:'NTEQ-Management',              active:true },
+  { id:'u_k10658', username:'paweenuch',      pass:'1234',    name:'Paweenuch Khotsakhueng',          emp:'10658',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10645', username:'chatchai',       pass:'1234',    name:'Chatchai Ammukka',                emp:'10645',   email:'chat0624@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Wet Line',                active:true },
+  { id:'u_k10585', username:'rungnapa',       pass:'1234',    name:'Rungnapa Sitthi',                 emp:'10585',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10558', username:'apisara',        pass:'1234',    name:'Apisara Soongneun',               emp:'10558',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10463', username:'tanapon',        pass:'1234',    name:'Tanapon Wongnaree',               emp:'10463',   email:'tanapol.w@nteq-polymer.com',      position:'Supervisor I',                 role:'user',    dept:'NTEQ-DRY',                     active:true },
+  { id:'u_k10436', username:'pornwanut',      pass:'1234',    name:'Pornwanut Manothum',              emp:'10436',   email:'pornwanut.m@nteq-polymer.com',    position:'Junior supervisor',            role:'user',    dept:'NTEQ-R&D',                     active:true },
+  { id:'u_k10421', username:'chalita',        pass:'1234',    name:'Chalita Hima',                    emp:'10421',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Operation',                active:true },
+  { id:'u_k10413', username:'somchay',        pass:'1234',    name:'Somchay Patmod',                  emp:'10413',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10411', username:'jirunan',        pass:'1234',    name:'Jirunan Kaewkhaw',                emp:'10411',   email:'',                                position:'Supervisor l',                 role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10410', username:'sattawat',       pass:'1234',    name:'Sattawat Srechaiyo',              emp:'10410',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10409', username:'sarawut',        pass:'1234',    name:'Sarawut Rakphung',                emp:'10409',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10406', username:'kittiphong',     pass:'1234',    name:'Kittiphong Obmasuy',              emp:'10406',   email:'',                                position:'Supervisor I',                 role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10395', username:'pattarin',       pass:'1234',    name:'Pattarin Khotchakhueng',          emp:'10395',   email:'patt1122@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10391', username:'peerapon',       pass:'1234',    name:'Peerapon Jaitaing',               emp:'10391',   email:'',                                position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10384', username:'thidarat',       pass:'1234',    name:'Thidarat Netwong',                emp:'10384',   email:'account_8@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10371', username:'satakamon',      pass:'1234',    name:'Satakamon Promjuang',             emp:'10371',   email:'satakamon.p@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k10367', username:'supatchaya',     pass:'1234',    name:'Supatchaya Promwong',             emp:'10367',   email:'marketing_nteq@nteq-polymer.com', position:'Assignment Manager',           role:'user',  dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10364', username:'rattaya',        pass:'1234',    name:'Rattaya Chananet',                emp:'10364',   email:'',                                position:'Assistant Manager',            role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k10361', username:'yanisa',         pass:'1234',    name:'Yanisa Kongsi',                   emp:'10361',   email:'marketing@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10358', username:'pratchaya',      pass:'1234',    name:'Pratchaya Pongwongprasert',       emp:'10358',   email:'prat0623@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10355', username:'tanapan',        pass:'1234',    name:'Tanapan Kotti',                   emp:'10355',   email:'tanapan.k@sv-polymer.com',        position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k10354', username:'pornpan',        pass:'1234',    name:'Pornpan Muangkhote',              emp:'10354',   email:'',                                position:'Assistant Manager',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10350', username:'wilawan',        pass:'1234',    name:'Wilawan Meeintha',                emp:'10350',   email:'wilawan.m@sv-polymer.com',        position:'Supervisor',                   role:'user',    dept:'SVP-HR',                       active:true },
+  { id:'u_k10349', username:'arunthip',       pass:'1234',    name:'Arunthip Chompoorat',             emp:'10349',   email:'arunthip.c@nteq-polymer.com',     position:'Senior Supervisor l',          role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10347', username:'worachade',      pass:'1234',    name:'Worachade Khunthong',             emp:'10347',   email:'worachade.k@sv-polymer.com',      position:'Senior Supervisor',            role:'user',    dept:'SVP-Technical',                active:true },
+  { id:'u_k10341', username:'supitcha',       pass:'1234',    name:'Supitcha Klaikham',               emp:'10341',   email:'supitcha.k@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k10340', username:'pitchaya',       pass:'1234',    name:'Pitchaya Kamseeda',               emp:'10340',   email:'pitc0123@nteq-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10338', username:'saisamorn',      pass:'1234',    name:'Saisamorn Khankhaeng',            emp:'10338',   email:'sais1222@nteq-polymer.com',       position:'Supervisor l',                 role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10333', username:'napaporn',       pass:'1234',    name:'Napaporn Roopngam',               emp:'10333',   email:'admin3@nteq-polymer.com',         position:'Assistant Supervisor I',       role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k10332', username:'riamsiri',       pass:'1234',    name:'Riamsiri Jaisook',                emp:'10332',   email:'prd_dc1@nteq-polymer.com',        position:'Assistant Supervisor I',       role:'user',    dept:'NTEQ-Safety',                  active:true },
+  { id:'u_k10326', username:'udomrak',        pass:'1234',    name:'Udomrak Suesat',                  emp:'10326',   email:'account_5@nteq-polymer.com',      position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10324', username:'chedsada',       pass:'1234',    name:'Chedsada Uantrai',                emp:'10324',   email:'',                                position:'Senior Supervisor l',          role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10320', username:'thanyarat',      pass:'1234',    name:'Thanyarat changhiran',             emp:'10320',   email:'thanyarat.c@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-Shipping',                 active:true },
+  { id:'u_k10318', username:'kavinnat',       pass:'1234',    name:'Kavinnat Sripaengmon',            emp:'10318',   email:'kavinnat.s@sv-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k10302', username:'thatsani',       pass:'1234',    name:'Thatsani Sangsuwan',              emp:'10302',   email:'account_7@nteq-polymer.com',      position:'Supervisor I',                 role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10298', username:'parichat_n',     pass:'1234',    name:'Parichat Nitisuk',                emp:'10298',   email:'pari0122@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k10285', username:'khanitta',       pass:'1234',    name:'Khanitta Laotaew',                emp:'10285',   email:'account_2@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10280', username:'narongsak',      pass:'1234',    name:'Narongsak Khammoongkhun',         emp:'10280',   email:'naro0221@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10279', username:'cherdsak',       pass:'1234',    name:'Cherdsak Thongpa',                emp:'10279',   email:'cher0121@nteq-polymer.com',       position:'Senior Supervisor Il',         role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10275', username:'namthip',        pass:'1234',    name:'Namthip Phakaphan',               emp:'10275',   email:'marketing_1@nteq-polymer.com',    position:'Supervisor ll',                role:'user',    dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10249', username:'pongsathon',     pass:'1234',    name:'Pongsathon Pecharawach',          emp:'10249',   email:'',                                position:'Manager',                      role:'user',  dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10234', username:'assakorn',       pass:'1234',    name:'Assakorn Chansrimuang',           emp:'10234',   email:'assa0219@nteq-polymer.com',       position:'Supervisor II',                role:'user',    dept:'NTEQ-Wet Line',                active:true },
+  { id:'u_k10226', username:'saksakul',       pass:'1234',    name:'Saksakul Boonsankaew',            emp:'10226',   email:'technical@nteq-polymer.com',      position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10225', username:'akhaphon',       pass:'1234',    name:'Akhaphon Butte',                  emp:'10225',   email:'akha1118@nteq-polymer.com',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-DRY',                     active:true },
+  { id:'u_k10213', username:'rattanawadee',   pass:'1234',    name:'Rattanawadee Jansong',            emp:'10213',   email:'ratt0618@nteq-polymer.com',       position:'Assignments Manager',          role:'user',  dept:'NTEQ-BD',                      active:true },
+  { id:'u_k10202', username:'yurada',         pass:'1234',    name:'Yurada Phanurak',                 emp:'10202',   email:'dccenter@nteq-polymer.com',       position:'Manager',                      role:'user',  dept:'NTEQ-BD',                      active:true },
+  { id:'u_k10176', username:'supaporn_b',     pass:'1234',    name:'Supaporn Buakaew',                emp:'10176',   email:'supa0919@nteq-polymer.com',       position:'Senior Supervisor Il',         role:'user',    dept:'NTEQ-Environment',             active:true },
+  { id:'u_k10159', username:'nobporn',        pass:'1234',    name:'Nobporn Chuklin',                 emp:'10159',   email:'nobp0916@nteq-polymer.com',       position:'Assistant Manager',            role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10157', username:'phairot',        pass:'1234',    name:'Phairot Thongdee',                emp:'10157',   email:'phairot@nteq-polymer.com',        position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10151', username:'ranee',          pass:'1234',    name:'Ranee Tumnasuk',                  emp:'10151',   email:'account_3@nteq-polymer.com',      position:'Assistant Manager',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10149', username:'waranya',        pass:'1234',    name:'Waranya Srikaew',                 emp:'10149',   email:'warunya@nteq-polymer.com',        position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10130', username:'chairat',        pass:'1234',    name:'Chairat Jaitrong',                emp:'10130',   email:'chai1115@nteq-polymer.com',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10119', username:'pattra',         pass:'1234',    name:'Pattra Saphoo',                   emp:'10119',   email:'pattra@nteq-polymer.com',         position:'Assistant Manager',            role:'user',    dept:'NTEQ-R&D',                     active:true },
+  { id:'u_k10114', username:'supparerk',      pass:'1234',    name:'Supparerk Kwanthaisong',          emp:'10114',   email:'supparerk.k@nteq-polymer.com',    position:'Assistant Manager',            role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10109', username:'anongluk',       pass:'1234',    name:'Anongluk Rattanachaisiriwat',     emp:'10109',   email:'safety@nteq-polymer.com',         position:'Manager',                      role:'user',  dept:'NTEQ-Safety',                  active:true },
+  { id:'u_k10103', username:'apidech',        pass:'1234',    name:'Apidech Thongsom',                emp:'10103',   email:'apid0814@nteq-polymer.com',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10098', username:'ratchapol',      pass:'1234',    name:'Ratchapol Siriboon',              emp:'10098',   email:'AGRO@NTEQ-POLYMER.COM',           position:'Manager',                      role:'user',  dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10090', username:'parichat_sr',    pass:'1234',    name:'Parichat Sriprasert',             emp:'10090',   email:'purchase@nteq-polymer.com',       position:'Supervisor II',                role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10061', username:'montira',        pass:'1234',    name:'Montira Pubutta',                 emp:'10061',   email:'operation_1@nteq-polymer.com',    position:'Manager',                      role:'user',  dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10050', username:'hathaichanok',   pass:'1234',    name:'Hathaichanok Tonkaew',            emp:'10050',   email:'hata0912@nteq-polymer.com',       position:'Assistant Manager',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k10029', username:'piyanuch',       pass:'1234',    name:'Piyanuch Khotaraviang',           emp:'10029',   email:'quality@nteq-polymer.com',        position:'Manager',                      role:'user',  dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10026', username:'poranut',        pass:'1234',    name:'Poranut Janrustana',              emp:'10026',   email:'project@nteq-polymer.com',        position:'Manager',                      role:'user',  dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10003', username:'penpisut',       pass:'1234',    name:'Penpisut Jaro',                   emp:'10003',   email:'account_1@nteq-polymer.com',      position:'Manager',                      role:'user',  dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10002', username:'somnuek',        pass:'1234',    name:'Somnuek Sae-ngow',                emp:'10002',   email:'somnuek@nteq-polymer.com',        position:'Senior Manager',               role:'user',  dept:'NTEQ-Management',              active:true },
+  { id:'u_k0610548',username:'kittiphon',     pass:'1234',    name:'Kittiphon Phonphankwan',          emp:'0610548', email:'kittiphon.p@nteq-polymer.com',    position:'',                             role:'user',    dept:'NTEQ-Environment',             active:true },
+  { id:'u_k0610051',username:'srivikorn',     pass:'1234',    name:'Srivikorn Sophakun',              emp:'0610051', email:'srivikorn.s@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-NY',                       active:true },
+  { id:'u_k0510069',username:'srisuda',       pass:'1234',    name:'Srisuda Bunkamned',               emp:'0510069', email:'srisuda.b@sv-polymer.com',        position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510068',username:'phitsini',      pass:'1234',    name:'Phitsini Yonplio',                emp:'0510068', email:'phitsini.y@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510050',username:'supaporn_n',    pass:'1234',    name:'Supaporn Nantawong',              emp:'0510050', email:'supaporn.n@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510049',username:'anongnart',     pass:'1234',    name:'Anongnart Khotsa',                emp:'0510049', email:'anongnart.k@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510042',username:'anekpong',      pass:'1234',    name:'Anekpong Sonyeam',                emp:'0510042', email:'anekpong.s@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0410902',username:'yutthana',      pass:'1234',    name:'Yutthana Saengkla',               emp:'0410902', email:'yutthana.s@nteq-polymer.com',     position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k0410901',username:'permsak',       pass:'1234',    name:'Permsak Aggalab',                 emp:'0410901', email:'permsak.a@nteq-polymer.com',      position:'BD Technical Asst. Manager',   role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k0410865',username:'sunthon',       pass:'1234',    name:'Sunthon Sitthikankaew',           emp:'0410865', email:'sunthon.s@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k0410864',username:'nutchinee',     pass:'1234',    name:'Nutchinee Sabai',                 emp:'0410864', email:'nutchinee.s@nteq-polymer.com',    position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Wet Line',                active:true },
+  { id:'u_k0410072',username:'aphichat',      pass:'1234',    name:'Aphichat Roddeepeng',             emp:'0410072', email:'aphichat.r@sv-polymer.com',       position:'Supervisor',                   role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410067',username:'chaisak',       pass:'1234',    name:'Chaisak Jaemdara',                emp:'0410067', email:'svp.technical01@sv-polymer.com',  position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410066',username:'peeraphat',     pass:'1234',    name:'Peeraphat Suebpanya',             emp:'0410066', email:'',                                position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410065',username:'oraya',         pass:'1234',    name:'Oraya Nim-on',                    emp:'0410065', email:'svp.production03@sv-polymer.com', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410057',username:'theerawut',     pass:'1234',    name:'Theerawut Auyuen',                emp:'0410057', email:'svp.production01@sv-polymer.com', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410053',username:'thanakorn_p',   pass:'1234',    name:'Thanakorn Pholthip',              emp:'0410053', email:'thanakorn.p@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410047',username:'worramet',      pass:'1234',    name:'Worramet Pongthao',               emp:'0410047', email:'svp.production02@sv-polymer.com', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410044',username:'pittayut',      pass:'1234',    name:'Pittayut Sirijaroen',             emp:'0410044', email:'pittayut.s@sv-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410034',username:'nattawut',      pass:'1234',    name:'Nattawut Inmankong',              emp:'0410034', email:'svp.smaintance@sv-polymer.com',   position:'Senior Supervisor I',          role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0310061',username:'praphatsorn',   pass:'1234',    name:'Praphatsorn Nilkhamnerd',         emp:'0310061', email:'praphatsorn.n@sv-polymer.com',    position:'Junior Supervisor',            role:'user',    dept:'SVP-HR',                       active:true },
+  { id:'u_k0310052',username:'anantaya',      pass:'1234',    name:'Anantaya Baokeaw',                emp:'0310052', email:'anantaya.b@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k0110060',username:'benjamas',      pass:'1234',    name:'Benjamas Loedsakrai',             emp:'0110060', email:'benjamas.l@sv-polymer.com',       position:'Senior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k0110059',username:'nitchanan',     pass:'1234',    name:'Nitchanan Muangjan',              emp:'0110059', email:'nitchanan.m@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k0110056',username:'kannaphat',     pass:'1234',    name:'Kannaphat Thiamsanit',            emp:'0110056', email:'kannaphat.t@sv-polymer.com',      position:'Manager',                      role:'user',  dept:'SVP-Account',                  active:true },
+  { id:'u_k0110048',username:'patcharaporn',  pass:'1234',    name:'Patcharaporn Phasom',             emp:'0110048', email:'patcharaporn.p@sv-polymer.com',   position:'Supervisor I',                 role:'user',    dept:'SVP-Purchase',                 active:true },
+  { id:'u_k0110041',username:'jaruwan',       pass:'1234',    name:'Jaruwan Piajan',                  emp:'0110041', email:'jaruwan.p@sv-polymer.com',        position:'Supervisor II',                role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k0110040',username:'titaporn',      pass:'1234',    name:'Titaporn Maneesarn',              emp:'0110040', email:'marketing_svp01@sv-polymer.com',  position:'Assistant Manager',            role:'user',    dept:'SVP-Shipping',                 active:true },
+  { id:'u_k0110037',username:'naruwan',       pass:'1234',    name:'Naruwan Eiamsongkarm',            emp:'0110037', email:'naruwan.e@sv-polymer.com',        position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k0110032',username:'chayanit',      pass:'1234',    name:'Chayanit Oiamjaroenwat',          emp:'0110032', email:'chayanit.o@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Purchase',                 active:true },
+  { id:'u_kyuwadee', username:'yuwadee',      pass:'1234',    name:'Yuwadee Wongwaengnoi',            emp:'',        email:'yuwadee.w@sv-polymer.com',        position:'Manager',                      role:'user',  dept:'SVP-Account',                  active:true },
+  { id:'u_knamfon',  username:'namfon',       pass:'1234',    name:'namfon promjuang',                emp:'',        email:'',                                position:'reader store',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
 ];
 
 const DEFAULT_STOCK = [
@@ -770,7 +771,7 @@ const DEFAULT_REQS = [
 // เวอร์ชันข้อมูล — เปลี่ยนเลขนี้เพื่อ reset stock เป็น DEFAULT ใหม่
 const STOCK_DATA_VERSION = '2';
 const REQ_DATA_VERSION = '5';
-const USER_DATA_VERSION = '5';
+const USER_DATA_VERSION = '6';
 
 
 
@@ -798,6 +799,7 @@ let currentUser = null;
 const _bc = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('srp_sync') : null;
 function save() {
   try {
+    window.users = users;
     localStorage.setItem('srp_users',    JSON.stringify(users));
     localStorage.setItem('srp_stock',    JSON.stringify(stockData));
     localStorage.setItem('srp_requests', JSON.stringify(requests));
@@ -869,10 +871,12 @@ function load() {
   } catch(e) {
     users = DEFAULT_USERS; stockData = JSON.parse(JSON.stringify(DEFAULT_STOCK)); requests = DEFAULT_REQS;
   }
+  window.users = users;
   loadSettings();
   loadRepairs();
   loadDevices();
   loadPM();
+  window.users = users;
 }
 
 // ═══════════════════════════════════════
@@ -1621,10 +1625,10 @@ function deleteStock(id) {
 function renderUsers() {
   const list = document.getElementById('users-list');
   list.innerHTML = '';
-  const grouped = { admin:[], manager:[], warehouse:[], staff:[] };
+  const grouped = { admin:[], user:[] };
   users.forEach(u => { if(grouped[u.role]) grouped[u.role].push(u); });
 
-  ['admin','manager','warehouse','staff'].forEach(role => {
+  ['admin','user'].forEach(role => {
     if (!grouped[role].length) return;
     const section = document.createElement('div');
     section.innerHTML = `<div style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--nav-text-label);margin:1.25rem 0 .5rem .25rem">${ROLE_LABELS[role]}</div>`;
@@ -1636,7 +1640,7 @@ function renderUsers() {
           <div class="user-av-lg" style="background:${ROLE_BG[u.role]};color:${ROLE_COLORS[u.role]}">${u.name.charAt(0)}</div>
           <div>
             <div style="font-size:14px;font-weight:600">${u.name} ${!u.active?'<span class="badge b-inactive">ปิดใช้งาน</span>':''}</div>
-            <div style="font-size:12px;color:var(--text-muted)">@${u.username} · ${u.emp||'ไม่มีรหัส'} · ${u.dept}</div>
+            <div style="font-size:12px;color:var(--text-muted)">@${u.username} · ${u.emp||'ไม่มีรหัส'} · ${u.dept}${u.position ? ' · '+u.position : ''}${u.email ? ' · <a href="mailto:'+u.email+'" style="color:var(--primary);text-decoration:none">'+u.email+'</a>' : ''}</div>
           </div>
         </div>
         <div class="user-card-acts">
@@ -1663,9 +1667,11 @@ function openAddUser() {
   (document.getElementById('muser-title')||{}).textContent = 'เพิ่มผู้ใช้ใหม่';
   document.getElementById('mu-name').value = '';
   document.getElementById('mu-emp').value  = '';
+  document.getElementById('mu-email').value = '';
+  document.getElementById('mu-position').value = '';
   document.getElementById('mu-user').value = '';
   document.getElementById('mu-pass').value = '';
-  document.getElementById('mu-role').value = 'staff';
+  document.getElementById('mu-role').value = 'user';
   document.getElementById('mu-dept').value = 'QC';
   document.getElementById('mu-err').style.display = 'none';
   document.getElementById('modal-user').classList.remove('hidden');
@@ -1675,13 +1681,22 @@ function openEditUser(id) {
   const u = users.find(x=>x.id===id); if(!u) return;
   editUserId = id;
   (document.getElementById('muser-title')||{}).textContent = 'แก้ไขข้อมูลผู้ใช้';
-  document.getElementById('mu-name').value = u.name;
-  document.getElementById('mu-emp').value  = u.emp || '';
-  document.getElementById('mu-user').value = u.username;
-  document.getElementById('mu-pass').value = u.pass;
-  document.getElementById('mu-role').value = u.role;
-  document.getElementById('mu-dept').value = u.dept;
-  document.getElementById('mu-err').style.display = 'none';
+  const sv = (eid, val) => { const el = document.getElementById(eid); if(el) el.value = val||''; };
+  sv('mu-name', u.name);
+  sv('mu-emp',  u.emp);
+  sv('mu-email', u.email);
+  sv('mu-position', u.position);
+  sv('mu-user', u.username);
+  sv('mu-pass', u.pass);
+  sv('mu-role', u.role);
+  // mu-dept: handle both <select> and srp custom wrapper
+  const deptWrap = document.querySelector('[data-srp-id="mu-dept"]');
+  if (deptWrap && deptWrap._srpSetValue) {
+    deptWrap._srpSetValue(u.dept||'');
+  } else {
+    sv('mu-dept', u.dept);
+  }
+  (document.getElementById('mu-err')||{}).style && (document.getElementById('mu-err').style.display='none');
   document.getElementById('modal-user').classList.remove('hidden');
 }
 
@@ -1692,6 +1707,8 @@ function saveUser() {
   const role = document.getElementById('mu-role').value;
   const dept = document.getElementById('mu-dept').value;
   const emp  = document.getElementById('mu-emp').value.trim();
+  const email = (document.getElementById('mu-email')||{}).value?.trim() || '';
+  const position = (document.getElementById('mu-position')||{}).value?.trim() || '';
   const errEl= document.getElementById('mu-err');
   errEl.style.display = 'none';
   if (!name)  { errEl.textContent='กรุณากรอกชื่อ-นามสกุล';    errEl.style.display='block'; return; }
@@ -1703,7 +1720,7 @@ function saveUser() {
 
   if (editUserId) {
     const u = users.find(x=>x.id===editUserId);
-    Object.assign(u, { name, username:uname, pass, role, dept, emp });
+    Object.assign(u, { name, username:uname, pass, role, dept, emp, email, position });
     // update live user if editing self
     if (currentUser.id === editUserId) {
       currentUser = u;
@@ -1712,7 +1729,7 @@ function saveUser() {
     }
     toast('อัปเดตข้อมูลผู้ใช้ @'+uname+' แล้ว');
   } else {
-    users.push({ id:'u'+Date.now(), username:uname, pass, name, emp, role, dept, active:true });
+    users.push({ id:'u'+Date.now(), username:uname, pass, name, emp, email, position, role, dept, active:true });
     toast('เพิ่มผู้ใช้ @'+uname+' สำเร็จ');
   }
   closeModal('modal-user'); save(); renderUsers();
@@ -2663,14 +2680,30 @@ function saveRepairs() {
 }
 
 function openRepairModal() {
-  (document.getElementById('mrep-title')||{}).textContent = 'แจ้งซ่อม IT ใหม่';
-  document.getElementById('rp-name').value    = currentUser.name;
-  document.getElementById('rp-emp').value     = currentUser.emp || '';
-  document.getElementById('rp-dept').value    = currentUser.dept;
-  document.getElementById('rp-problem').value = '';
-  document.getElementById('rp-asset').value   = '';
-  document.getElementById('rp-urgent').value  = 'normal';
-  document.getElementById('modal-repair').classList.remove('hidden');
+  try {
+    var t=document.getElementById('mrep-title');
+    if(t) t.textContent='แจ้งซ่อม IT ใหม่';
+    var _sv=function(id,v){try{var e=document.getElementById(id);if(e)e.value=v||'';}catch(ex){}};
+    _sv('rp-name', (currentUser&&currentUser.name)||'');
+    _sv('rp-emp',  (currentUser&&currentUser.emp)||'');
+    _sv('rp-problem','');
+    _sv('rp-asset','');
+    _sv('rp-urgent','normal');
+    // rp-dept
+    try {
+      var dw=document.querySelector('[data-srp-id="rp-dept"]');
+      if(dw&&typeof dw._srpSetValue==='function') dw._srpSetValue((currentUser&&currentUser.dept)||'');
+      else _sv('rp-dept',(currentUser&&currentUser.dept)||'');
+    } catch(ex) { _sv('rp-dept',(currentUser&&currentUser.dept)||''); }
+    // rp-type
+    try {
+      var tw=document.querySelector('[data-srp-id="rp-type"]');
+      if(tw&&typeof tw._srpSetValue==='function') tw._srpSetValue('');
+    } catch(ex) {}
+  } catch(e) { console.error('openRepairModal err',e); }
+  // เปิด modal เสมอไม่ว่าจะ error หรือไม่
+  var m=document.getElementById('modal-repair');
+  if(m) m.classList.remove('hidden');
 }
 
 function saveRepair() {
@@ -2682,7 +2715,7 @@ function saveRepair() {
     id, userId: currentUser.id,
     reporter: document.getElementById('rp-name').value || currentUser.name,
     emp: document.getElementById('rp-emp').value || currentUser.emp || '',
-    dept: document.getElementById('rp-dept').value || currentUser.dept,
+    dept: (function(){var w=document.querySelector('[data-srp-id="rp-dept"]');return (w&&w._srpGetValue&&w._srpGetValue())||document.getElementById('rp-dept')?.value||currentUser.dept;})(),
     type: document.getElementById('rp-type').value,
     problem, asset: document.getElementById('rp-asset').value.trim(),
     urgent: document.getElementById('rp-urgent').value,
@@ -3418,147 +3451,6 @@ function generateQRSelected() {
 }
 function openAddDeviceModal() {
   editDeviceId = null;
-  (document.getElementById('dev-modal-title')||{}).textContent = 'เพิ่มอุปกรณ์ใหม่';
-  ['dev-m-code','dev-m-name','dev-m-brand','dev-m-model','dev-m-type','dev-m-subtype','dev-m-sn','dev-m-dept','dev-m-user','dev-m-company','dev-m-warranty'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const p = document.getElementById('dev-m-price'); if(p) p.value = 0;
-  const s = document.getElementById('dev-m-status'); if(s) s.value = 'active';
-  document.getElementById('dev-modal').style.display = 'flex';
-}
-function editDevice(id) {
-  const d = deviceData.find(x=>x.id===id); if(!d) return;
-  editDeviceId = id;
-  (document.getElementById('dev-modal-title')||{}).textContent = 'แก้ไขอุปกรณ์';
-  const f=(fid,v)=>{const el=document.getElementById(fid);if(el)el.value=v||'';};
-  f('dev-m-code',d.code);f('dev-m-name',d.name);f('dev-m-brand',d.brand);f('dev-m-model',d.model);
-  f('dev-m-type',d.type);f('dev-m-subtype',d.subtype);f('dev-m-sn',d.sn);f('dev-m-dept',d.dept);
-  f('dev-m-user',d.user);f('dev-m-company',d.company);f('dev-m-warranty',d.warranty);
-  const p=document.getElementById('dev-m-price');if(p)p.value=d.price||0;
-  const s=document.getElementById('dev-m-status');if(s)s.value=d.status||'active';
-  document.getElementById('dev-modal').style.display='flex';
-}
-function viewDevice(id) {
-  const d=deviceData.find(x=>x.id===id); if(!d) return;
-  alert(`รหัส: ${d.code}\nS/N: ${d.sn||'-'}\nชื่อ: ${d.name}\nยี่ห้อ/รุ่น: ${d.brand} ${d.model}\nประเภท: ${d.type}\nหน่วยงาน: ${d.dept}\nผู้ใช้: ${d.user}\nการรับประกัน: ${d.warranty||'-'}\nราคา: ${d.price||0} บาท`);
-}
-function saveDevice() {
-  const v=id=>(document.getElementById(id)?.value||'').trim();
-  if(!v('dev-m-code')||!v('dev-m-name')){toast('กรุณากรอกรหัสและชื่ออุปกรณ์','err');return;}
-  if(editDeviceId){
-    const d=deviceData.find(x=>x.id===editDeviceId);
-    if(d){d.code=v('dev-m-code');d.name=v('dev-m-name');d.brand=v('dev-m-brand');d.model=v('dev-m-model');
-      d.type=v('dev-m-type');d.subtype=v('dev-m-subtype');d.sn=v('dev-m-sn');d.dept=v('dev-m-dept');
-      d.user=v('dev-m-user');d.company=v('dev-m-company');d.warranty=v('dev-m-warranty');
-      d.price=parseFloat(document.getElementById('dev-m-price')?.value||0);
-      d.status=document.getElementById('dev-m-status')?.value||'active';}
-    toast('แก้ไขอุปกรณ์แล้ว');
-  } else {
-    const newId='DEV-'+String(deviceCounter).padStart(3,'0'); deviceCounter++;
-    deviceData.push({id:newId,code:v('dev-m-code'),name:v('dev-m-name'),brand:v('dev-m-brand'),model:v('dev-m-model'),
-      type:v('dev-m-type'),subtype:v('dev-m-subtype'),sn:v('dev-m-sn'),dept:v('dev-m-dept'),
-      user:v('dev-m-user'),company:v('dev-m-company'),warranty:v('dev-m-warranty'),
-      price:parseFloat(document.getElementById('dev-m-price')?.value||0),
-      status:document.getElementById('dev-m-status')?.value||'active'});
-    toast('เพิ่มอุปกรณ์แล้ว');
-  }
-  saveDevices(); renderDevices(); closeDeviceModal();
-}
-function closeDeviceModal(){document.getElementById('dev-modal').style.display='none';}
-
-// ═══════════════════════════════════════════
-// REPAIR DASHBOARD CARDS
-// ═══════════════════════════════════════════
-function loadDevices(){try{deviceData=JSON.parse(localStorage.getItem('srp_devices'))||JSON.parse(JSON.stringify(DEFAULT_DEVICES));}catch(e){deviceData=JSON.parse(JSON.stringify(DEFAULT_DEVICES));}}
-function saveDevices(){try{localStorage.setItem('srp_devices',JSON.stringify(deviceData));if(window.SrpSync)SrpSync.push({devices:deviceData});}catch(e){}}
-function renderDevices(){
-  const q=(document.getElementById('dev-q')?.value||'').toLowerCase();
-  const st=document.getElementById('dev-status-filter')?.value||'';
-  const filtered=deviceData.filter(d=>{
-    const mQ=!q||[d.code,d.name,d.sn,d.dept,d.user,d.brand,d.model].some(v=>(v||'').toLowerCase().includes(q));
-    return mQ&&(!st||d.status===st);
-  });
-  const stL={active:'ใช้งานปกติ',transit:'อุปกรณ์ส่วนกลาง',inactive:'เลิกใช้งาน'};
-  const stC={active:'#10b981',transit:'#f59e0b',inactive:'#94a3b8'};
-  const tbody=document.getElementById('dev-tbody');
-  if(!tbody)return;
-  const cntAll=deviceData.length,cntActive=deviceData.filter(d=>d.status==='active').length,cntTransit=deviceData.filter(d=>d.status==='transit').length,cntInactive=deviceData.filter(d=>d.status==='inactive').length;
-  const sb=document.getElementById('dev-stat-bar');
-  if(sb)sb.innerHTML=`<span style="color:#10b981;font-weight:600">ใช้งานปกติ: ${cntActive}</span><span style="color:#f59e0b;font-weight:600">ส่วนกลาง: ${cntTransit}</span><span style="color:#94a3b8;font-weight:600">เลิกใช้: ${cntInactive}</span><span style="color:#6b7280">รวมทั้งหมด: ${cntAll}</span>`;
-  const ct=document.getElementById('dev-count-txt');
-  if(ct)ct.textContent=`แสดง ${filtered.length} รายการ`;
-  tbody.innerHTML=filtered.length===0?`<tr><td colspan="10" style="text-align:center;padding:2rem;color:#6b7280">ไม่พบข้อมูลอุปกรณ์</td></tr>`:filtered.map(d=>{
-    const sc=stC[d.status]||'#94a3b8';const sl=stL[d.status]||d.status;
-    return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:10px 8px"><input type="checkbox" class="dev-chk" data-id="${d.id}" onchange="updateDevBulkBar()"></td>
-      <td style="padding:10px 8px"><div style="width:44px;height:44px;border-radius:8px;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;font-size:20px"></div></td>
-      <td style="padding:10px 8px;font-family:monospace;font-size:12px;color:#00e87a">${d.code||'-'}</td>
-      <td style="padding:10px 8px"><div style="font-weight:600;color:#e2e8f0">${d.name||'-'}</div><div style="font-size:11px;color:#94a3b8">${d.type||''} ${d.subtype?'· '+d.subtype:''}</div></td>
-      <td style="padding:10px 8px;color:#cbd5e1">${d.brand||'-'} ${d.model||''}</td>
-      <td style="padding:10px 8px;color:#cbd5e1">${d.dept||'-'}</td>
-      <td style="padding:10px 8px;color:#cbd5e1">${d.user||'-'}<br><span style="font-size:11px;color:#94a3b8">${d.company||''}</span></td>
-      <td style="padding:10px 8px;font-size:12px;color:#cbd5e1">${d.warranty||'-'}</td>
-      <td style="padding:10px 8px;font-size:12px;color:#cbd5e1">${d.price?Number(d.price).toLocaleString()+' ฿':'-'}</td>
-      <td style="padding:10px 8px">
-        <span style="background:${sc}22;color:${sc};padding:3px 8px;border-radius:99px;font-size:11px;font-weight:600">${sl}</span>
-        <div style="display:flex;gap:4px;margin-top:4px">
-          <button onclick="editDevice('${d.id}')" style="background:rgba(0,232,122,0.12);color:#00e87a;border:1px solid rgba(0,232,122,0.2);border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">แก้ไข</button>
-          <button onclick="if(confirm('ลบ?')){deviceData=deviceData.filter(x=>x.id!=='${d.id}');saveDevices();renderDevices();}" style="background:#3b1515;color:#f87171;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">ลบ</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-}
-function updateDevBulkBar(){const n=document.querySelectorAll('.dev-chk:checked').length;const b=document.getElementById('dev-bulk-bar');if(b)b.style.display=n>0?'flex':'none';const c=document.getElementById('dev-checked-count');if(c)c.textContent=n;}
-function deleteSelectedDevices(){const ids=[...document.querySelectorAll('.dev-chk:checked')].map(c=>c.dataset.id);if(!ids.length)return;if(!confirm(`\u0e25\u0e1a\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c ${ids.length} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23?`))return;deviceData=deviceData.filter(d=>!ids.includes(d.id));saveDevices();renderDevices();updateDevBulkBar();toast(`\u0e25\u0e1a ${ids.length} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e41\u0e25\u0e49\u0e27`,'warn');}
-function generateQRSelected(){const n=document.querySelectorAll('.dev-chk:checked').length;if(!n){toast('\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c\u0e01\u0e48\u0e2d\u0e19','err');return;}toast(`\u0e2a\u0e23\u0e49\u0e32\u0e07 QR Code ${n} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23`);}
-function openAddDeviceModal(){editDeviceId=null;(document.getElementById('dev-modal-title')||{}).textContent='\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c\u0e43\u0e2b\u0e21\u0e48';['dev-m-code','dev-m-name','dev-m-brand','dev-m-model','dev-m-type','dev-m-subtype','dev-m-sn','dev-m-dept','dev-m-user','dev-m-company','dev-m-warranty'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const p=document.getElementById('dev-m-price');if(p)p.value=0;const s=document.getElementById('dev-m-status');if(s)s.value='active';document.getElementById('dev-modal').style.display='flex';}
-function editDevice(id){const d=deviceData.find(x=>x.id===id);if(!d)return;editDeviceId=id;(document.getElementById('dev-modal-title')||{}).textContent='\u0e41\u0e01\u0e49\u0e44\u0e02\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c';const f=(fid,v)=>{const el=document.getElementById(fid);if(el)el.value=v||'';};f('dev-m-code',d.code);f('dev-m-name',d.name);f('dev-m-brand',d.brand);f('dev-m-model',d.model);f('dev-m-type',d.type);f('dev-m-subtype',d.subtype);f('dev-m-sn',d.sn);f('dev-m-dept',d.dept);f('dev-m-user',d.user);f('dev-m-company',d.company);f('dev-m-warranty',d.warranty);const p=document.getElementById('dev-m-price');if(p)p.value=d.price||0;const s=document.getElementById('dev-m-status');if(s)s.value=d.status||'active';document.getElementById('dev-modal').style.display='flex';}
-function viewDevice(id){const d=deviceData.find(x=>x.id===id);if(!d)return;alert(`\u0e23\u0e2b\u0e31\u0e2a: ${d.code}\nS/N: ${d.sn||'-'}\n\u0e0a\u0e37\u0e48\u0e2d: ${d.name}\n\u0e22\u0e35\u0e48\u0e2b\u0e49\u0e2d/\u0e23\u0e38\u0e48\u0e19: ${d.brand} ${d.model}\n\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17: ${d.type}\n\u0e2b\u0e19\u0e48\u0e27\u0e22\u0e07\u0e32\u0e19: ${d.dept}\n\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49: ${d.user}\n\u0e01\u0e32\u0e23\u0e23\u0e31\u0e1a\u0e1b\u0e23\u0e30\u0e01\u0e31\u0e19: ${d.warranty||'-'}\n\u0e23\u0e32\u0e04\u0e32: ${d.price||0} \u0e1a\u0e32\u0e17`);}
-function saveDevice(){const v=id=>(document.getElementById(id)?.value||'').trim();if(!v('dev-m-code')||!v('dev-m-name')){toast('\u0e01\u0e23\u0e38\u0e13\u0e32\u0e01\u0e23\u0e2d\u0e01\u0e23\u0e2b\u0e31\u0e2a\u0e41\u0e25\u0e30\u0e0a\u0e37\u0e48\u0e2d\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c','err');return;}if(editDeviceId){const d=deviceData.find(x=>x.id===editDeviceId);if(d){d.code=v('dev-m-code');d.name=v('dev-m-name');d.brand=v('dev-m-brand');d.model=v('dev-m-model');d.type=v('dev-m-type');d.subtype=v('dev-m-subtype');d.sn=v('dev-m-sn');d.dept=v('dev-m-dept');d.user=v('dev-m-user');d.company=v('dev-m-company');d.warranty=v('dev-m-warranty');d.price=parseFloat(document.getElementById('dev-m-price')?.value||0);d.status=document.getElementById('dev-m-status')?.value||'active';}toast('\u0e41\u0e01\u0e49\u0e44\u0e02\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c\u0e41\u0e25\u0e49\u0e27');}else{const nid='DEV-'+String(deviceCounter).padStart(3,'0');deviceCounter++;deviceData.push({id:nid,code:v('dev-m-code'),name:v('dev-m-name'),brand:v('dev-m-brand'),model:v('dev-m-model'),type:v('dev-m-type'),subtype:v('dev-m-subtype'),sn:v('dev-m-sn'),dept:v('dev-m-dept'),user:v('dev-m-user'),company:v('dev-m-company'),warranty:v('dev-m-warranty'),price:parseFloat(document.getElementById('dev-m-price')?.value||0),status:document.getElementById('dev-m-status')?.value||'active'});toast('\u0e40\u0e1e\u0e34\u0e48\u0e21\u0e2d\u0e38\u0e1b\u0e01\u0e23\u0e13\u0e4c\u0e41\u0e25\u0e49\u0e27');}saveDevices();renderDevices();closeDeviceModal();}
-function closeDeviceModal(){document.getElementById('dev-modal').style.display='none';}
-function renderRepairDashCards(){const fv=document.querySelector('input[name="rdfilter"]:checked')?.value||'all';const dt=document.getElementById('rdd-date')?.value||'';const dw=document.getElementById('rdd-wrap');if(dw)dw.style.display=fv==='date'?'flex':'none';const ym=new Date().toISOString().slice(0,7);let list=repairs||[];if(fv==='month')list=list.filter(r=>(r.created||'').startsWith(ym));else if(fv==='date'&&dt)list=list.filter(r=>(r.created||'').startsWith(dt));const cnt={open:0,checking:0,inprogress:0,sent:0,done:0,cannot:0,pending:0,complete:0};list.forEach(r=>{if(cnt[r.status]!==undefined)cnt[r.status]++;});const s=id=>{const el=document.getElementById(id);if(el)el.textContent=cnt[id.replace('rdc-','')]||0;};['rdc-open','rdc-checking','rdc-inprogress','rdc-sent','rdc-done','rdc-cannot','rdc-pending','rdc-complete'].forEach(s);}
-
-
-function switchDevFormTab(btn, tabId) {
-  document.querySelectorAll('.dev-form-tab').forEach(b => {
-    b.style.borderBottomColor = 'transparent';
-    b.style.color = '#6b7280';
-  });
-  btn.style.borderBottomColor = '#22c55e';
-  btn.style.color = '#22c55e';
-  ['dev-ftab-info','dev-ftab-warranty','dev-ftab-hw'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = id === tabId ? 'block' : 'none';
-  });
-}
-
-function previewDevImg(input) {
-  const file = input.files && input.files[0];
-  const prev = document.getElementById('dev-m-img-preview');
-  if (!file || !prev) return;
-  const reader = new FileReader();
-  reader.onload = e => { prev.src = e.target.result; prev.style.display = 'block'; };
-  reader.readAsDataURL(file);
-}
-
-function _devDeptOptions() {
-  const sel = document.getElementById('dev-m-dept');
-  if (!sel) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">หน่วยงาน / แผนก</option>' +
-    (window.customDepts || []).map(d => `<option value="${d}">${d}</option>`).join('');
-  sel.value = cur;
-}
-function _devUserOptions() {
-  const sel = document.getElementById('dev-m-user');
-  if (!sel) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">ผู้ใช้งาน</option>' +
-    (window.users || []).filter(u => u.active).map(u => `<option value="${u.name}">${u.name}</option>`).join('');
-  sel.value = cur;
-}
-
-function openAddDeviceModal() {
-  editDeviceId = null;
   (document.getElementById('dev-modal-title')||{}).textContent = 'เพิ่มอุปกรณ์';
   const ids = ['dev-m-code','dev-m-name','dev-m-brand','dev-m-model','dev-m-sn','dev-m-company',
     'dev-m-startdate','dev-m-docref','dev-m-detail','dev-m-warranty','dev-m-warrantyexp',
@@ -3567,14 +3459,25 @@ function openAddDeviceModal() {
   ids.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   const pr = document.getElementById('dev-m-img-preview'); if(pr){pr.src='';pr.style.display='none';}
   const fi = document.getElementById('dev-m-img'); if(fi) fi.value='';
-  document.getElementById('dev-m-price').value = 0;
-  document.getElementById('dev-m-status').value = 'active';
-  const cb = document.getElementById('dev-m-shared'); if(cb) cb.checked = false;
-  _devDeptOptions(); _devUserOptions();
-  // Reset tabs
-  const firstTab = document.querySelector('.dev-form-tab');
-  if(firstTab) switchDevFormTab(firstTab,'dev-ftab-info');
+  try { const pr=document.getElementById('dev-m-price'); if(pr) pr.value=0; } catch(e){}
+  try { const st=document.getElementById('dev-m-status'); if(st) st.value='active'; } catch(e){}
+  try { const cb=document.getElementById('dev-m-shared'); if(cb) cb.checked=false; } catch(e){}
+  try { _devDeptOptions(); } catch(e){}
+  try { _devUserOptions(); } catch(e){}
+  try {
+    const firstTab=document.querySelector('.dev-form-tab');
+    if(firstTab) switchDevFormTab(firstTab,'dev-ftab-info');
+  } catch(e){}
   document.getElementById('dev-modal').style.display = 'flex';
+}
+
+function closeDeviceModal() {
+  var m = document.getElementById('dev-modal');
+  if (m) m.style.display = 'none';
+  var panel = document.getElementById('dev-user-panel');
+  if (panel) panel.style.display = 'none';
+  var arrow = document.getElementById('dev-user-arrow');
+  if (arrow) arrow.style.transform = '';
 }
 
 function editDevice(id) {
@@ -4095,6 +3998,7 @@ main {
   border:1px solid var(--border-bright);
   background:rgba(255,255,255,0.04); color:var(--text-muted);
   transition:all .15s;
+  font-size:11px !important; padding:3px 8px !important;
 }
 .btn-back:hover { background:rgba(255,255,255,0.08); color:var(--text) }
 .btn-back svg { width:14px; height:14px }
@@ -4103,12 +4007,12 @@ main {
    CARDS
 ══════════════════════════════════ */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background:transparent;
+  
   border-radius: var(--radius-lg);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.25rem;
-  box-shadow: var(--shadow-card);
+  
   transition: border-color .2s, box-shadow .2s;
   position:relative; overflow:hidden;
   backdrop-filter: blur(12px);
@@ -4206,7 +4110,7 @@ textarea { min-height:80px; resize:vertical }
 input[readonly], input[disabled], select[disabled] {
   background:rgba(0,0,0,0.2); color:var(--text-light); cursor:default; border-color:var(--border);
 }
-select option { background:#050e07; color:var(--text) }
+select option { background:#ffffff !important; color:#111827 !important; }
 .field-locked { position:relative }
 .field-locked::after {
   content:''; position:absolute; right:10px; top:50%;
@@ -4967,8 +4871,12 @@ small, .text-sm, .hint, .sub-text {
 /* ── Dropdown options ── */
 select option {
   font-size: 13.5px !important;
-  color: #1a3a2a !important;
-  background: #0d2018 !important;
+  color: #111827 !important;
+  background: #ffffff !important;
+}
+select optgroup {
+  color: #111827 !important;
+  background: #ffffff !important;
 }
 
 .sec-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; margin-bottom:1.5rem; }
@@ -5007,7 +4915,7 @@ select option {
 /* Body & layout backgrounds */
 body { background: #f8fafc !important; color: #1e293b !important; }
 #app-layout { background: #f8fafc !important; }
-main { background: #f8fafc !important; }
+main { background: transparent !important; }
 #bg-hero, #it-bg-canvas { display: none !important; }
 
 /* Header */
@@ -5342,7 +5250,7 @@ section h2, section h3, [id^="sec-"] h2, [id^="sec-"] h3 { color: #111827 !impor
 /* Body & layout backgrounds */
 body { background: #f8fafc !important; color: #1e293b !important; }
 #app-layout { background: #f8fafc !important; }
-main { background: #f8fafc !important; }
+main { background: transparent !important; }
 #bg-hero, #it-bg-canvas { display: none !important; }
 
 /* Header */
@@ -5787,7 +5695,7 @@ h1,h2,h3,h4,h5,h6,
     <div id="login-register-wrap" style="text-align:center;margin-top:.5rem;display:none">
       <a href="#" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="return false;">ลงทะเบียนเข้าใช้งานระบบ</a>
     </div>
-    <div class="box-hint" id="login-hint">ผู้ดูแล: admin / 1234 &nbsp;|&nbsp; ผู้จัดการ: manager / 1234<br>เจ้าหน้าที่ IT: itstock / 1234 &nbsp;|&nbsp; พนักงาน: staff / 1234</div>
+    <div class="box-hint" id="login-hint">ผู้ดูแล: admin / 1234 &nbsp;|&nbsp; ผู้ใช้: natthawut / 1234</div>
   </div>
 </div>
 
@@ -6272,17 +6180,7 @@ function importDevUsers(input){
         <div class="u-role" id="u-role">—</div>
       </div>
     </div>
-    <button onclick="doLogout()" style="
-      background:#ef4444;color:#fff;border:none;border-radius:8px;
-      padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;
-      display:flex;align-items:center;gap:6px;font-family:inherit;
-      transition:background .2s;white-space:nowrap;
-    " onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
-      <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
-        <path d="M13 3h4a1 1 0 011 1v12a1 1 0 01-1 1h-4M9 14l4-4-4-4M13 10H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      ออกจากระบบ
-    </button>
+    
   </div>
 </header>
 
@@ -6358,7 +6256,13 @@ function importDevUsers(input){
       <svg viewBox="0 0 20 20" fill="none"><path d="M10 3v10M6 9l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
       Export Excel
     </button>
-  </div></nav>
+  </div>
+    <div class="nav-section" style="margin-top:auto;padding-top:8px;border-top:1px solid var(--border)">
+      <button onclick="doLogout()" class="nav-item" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;color:#ef4444;font-family:inherit;padding:8px 12px;font-size:13px;display:flex;align-items:center;gap:8px;border-radius:6px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M13 3h4a1 1 0 011 1v12a1 1 0 01-1 1h-4M9 14l4-4-4-4M13 10H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ออกจากระบบ
+      </button>
+    </div></nav>
 
 <main>
 
@@ -6493,14 +6397,7 @@ function importDevUsers(input){
     <div class="form-grid">
       <div class="form-group">
         <label>แผนก</label>
-        <div><select id="f-dept">
-          <option value="">-- เลือกแผนก --</option>
-          <option>QC</option><option>MDB</option><option>TSR</option>
-          <option>HP</option><option>HR</option><option>Admin</option>
-          <option>IT</option><option>RD</option><option>Weight</option>
-          <option>Purchase</option><option>Shipping</option>
-          <option>Account</option>
-        </select></div>
+        <div><select id="f-dept"><option value="">-- เลือกแผนก --</option></select></div>
       </div>
       <div class="form-group"><label>ประเภทการเบิก</label>
         <select id="f-type">
@@ -6564,9 +6461,7 @@ function importDevUsers(input){
       <option value="approved">อนุมัติ</option><option value="issued">จ่ายแล้ว</option><option value="rejected">ปฏิเสธ</option>
     </select>
     <label>แผนก:</label>
-    <select id="flt-dept" onchange="renderApprove()">
-      <option value="">ทุกแผนก</option>
-    </select>
+    <select id="flt-dept"><option value="">ทุกแผนก</option></select>
   </div>
   <div class="table-wrap">
     <table><thead><tr>
@@ -6783,35 +6678,57 @@ function importDevUsers(input){
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">หน่วยงาน / แผนก</label>
-          <select id="dev-m-dept"
-            style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">
-            <option value="">หน่วยงาน / แผนก</option>
-          </select>
+          <select id="dev-m-dept"><option value="">หน่วยงาน / แผนก</option></select>
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">หมวดหมู่อุปกรณ์</label>
-          <select id="dev-m-type"
-            style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">
-            <option value="">หมวดหมู่อุปกรณ์</option>
-            <option>Mobile phone</option><option>Laptop</option><option>Desktop PC</option>
-            <option>Printer</option><option>Projector</option><option>Network</option><option>Other</option>
-          </select>
+          <select id="dev-m-type"><option value="">หมวดหมู่อุปกรณ์</option></select>
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">ประเภทอุปกรณ์</label>
-          <select id="dev-m-subtype"
-            style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">
-            <option value="">ประเภทอุปกรณ์</option>
-            <option>Mobile Android</option><option>Mobile iOS</option><option>Windows</option>
-            <option>macOS</option><option>Linux</option><option>Other</option>
-          </select>
+          <select id="dev-m-subtype"><option value="">ประเภทอุปกรณ์</option></select>
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">ผู้ใช้งาน</label>
-          <select id="dev-m-user"
-            style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box">
-            <option value="">ผู้ใช้งาน</option>
-          </select>
+          <div id="dev-user-dropdown" style="position:relative;width:100%">
+            <!-- Hidden input เก็บค่าจริง -->
+            <input type="hidden" id="dev-m-user" name="dev-m-user">
+            <!-- Trigger button -->
+            <div id="dev-user-trigger"
+              onclick="toggleDevUserDropdown()"
+              style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;
+                     font-family:inherit;box-sizing:border-box;cursor:pointer;background:#fff;
+                     display:flex;justify-content:space-between;align-items:center;min-height:38px;
+                     color:#374151;user-select:none">
+              <span id="dev-user-label" style="color:#9ca3af">-- เลือกผู้ใช้งาน --</span>
+              <svg id="dev-user-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" style="flex-shrink:0;transition:transform .2s;color:#6b7280">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+            <!-- Dropdown panel -->
+            <div id="dev-user-panel"
+              style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;
+                     background:#fff;border:1px solid var(--border);border-radius:8px;
+                     box-shadow:0 8px 24px rgba(0,0,0,.15);overflow:hidden;max-height:320px">
+              <!-- Search box -->
+              <div style="padding:8px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff">
+                <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;background:#f9fafb">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  <input id="dev-user-search" type="text" placeholder="ค้นหาชื่อ..."
+                    oninput="filterDevUsers()"
+                    style="border:none;outline:none;font-size:13px;font-family:inherit;
+                           width:100%;background:transparent;color:#111827">
+                </div>
+              </div>
+              <!-- Options list -->
+              <div id="dev-user-list" style="overflow-y:auto;max-height:250px;padding:4px 0">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
         </div>
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">สถานที่ติดตั้ง</label>
@@ -7004,11 +6921,7 @@ function importDevUsers(input){
       <option value="cannot">ซ่อมไม่ได้</option>
     </select>
     <label>ประเภท:</label>
-    <select id="rflt-type" onchange="renderRepair()">
-      <option value="">ทั้งหมด</option>
-      <option>คอมพิวเตอร์</option><option>เครื่องพิมพ์</option><option>เครือข่าย</option>
-      <option>โทรศัพท์</option><option>จอภาพ</option><option>อื่นๆ</option>
-    </select>
+    <select id="rflt-type"><option value="">ทั้งหมด</option></select>
   </div>
   <div class="table-wrap">
     <table><thead><tr>
@@ -7156,9 +7069,7 @@ function importDevUsers(input){
     <div style="font-size:13px;color:var(--blue)">
        <strong>บทบาทผู้ใช้:</strong>
       <span class="badge b-admin" style="margin:0 4px">Admin</span> เข้าถึงทั้งหมด &nbsp;|&nbsp;
-      <span class="badge b-manager" style="margin:0 4px">Manager</span> อนุมัติ + รายงาน &nbsp;|&nbsp;
-      <span class="badge b-warehouse" style="margin:0 4px">IT Staff</span> สต๊อก IT + จ่ายอุปกรณ์ &nbsp;|&nbsp;
-      <span class="badge b-staff" style="margin:0 4px">Staff</span> สร้างใบเบิกเท่านั้น
+      <span class="badge b-staff" style="margin:0 4px">User</span> สร้างใบเบิกเท่านั้น
     </div>
   </div>
   <div id="users-list"></div>
@@ -7920,26 +7831,22 @@ function importDevUsers(input){
       <div class="fld"><label>รหัสพนักงาน</label><input id="mu-emp" type="text" placeholder="EMP-XXXX"></div>
     </div>
     <div class="form-grid">
+      <div class="fld"><label>อีเมล</label><input id="mu-email" type="email" placeholder="example@company.com"></div>
+      <div class="fld"><label>ตำแหน่งงาน</label><input id="mu-position" type="text" placeholder="เช่น Manager, Supervisor"></div>
+    </div>
+    <div class="form-grid">
       <div class="fld"><label>Username *</label><input id="mu-user" type="text" placeholder="username (ไม่มีช่องว่าง)"></div>
       <div class="fld"><label>รหัสผ่าน *</label><input id="mu-pass" type="password" placeholder="รหัสผ่าน (ขั้นต่ำ 4 ตัว)"></div>
     </div>
     <div class="form-grid">
       <div class="fld"><label>บทบาท</label>
         <select id="mu-role">
-          <option value="staff">Staff — พนักงาน (สร้างใบเบิก)</option>
-          <option value="warehouse">Warehouse — เจ้าหน้าที่คลัง</option>
-          <option value="manager">Manager — ผู้จัดการ</option>
+          <option value="user">User — ผู้ใช้งาน (สร้างใบเบิก)</option>
           <option value="admin">Admin — ผู้ดูแลระบบ</option>
         </select>
       </div>
       <div class="fld"><label>แผนก</label>
-        <select id="mu-dept">
-          <option>QC</option><option>MDB</option><option>TSR</option>
-          <option>HP</option><option>HR</option><option>Admin</option>
-          <option>IT</option><option>RD</option><option>Weight</option>
-          <option>Purchase</option><option>Shipping</option>
-          <option>Account</option>
-        </select>
+        <select id="mu-dept"><option value="">-- เลือกแผนก --</option></select>
       </div>
     </div>
     <div id="mu-err" class="err-msg"></div>
@@ -7979,19 +7886,10 @@ function importDevUsers(input){
     </div>
     <div class="form-grid">
       <div class="fld"><label>แผนก</label>
-        <select id="rp-dept">
-          <option value="">-- เลือกแผนก --</option>
-          <option>QC</option><option>MDB</option><option>TSR</option>
-          <option>HP</option><option>HR</option><option>Admin</option>
-          <option>IT</option><option>RD</option><option>Weight</option>
-          <option>Purchase</option><option>Shipping</option><option>Account</option>
-        </select>
+        <select id="rp-dept"><option value="">-- เลือกแผนก --</option></select>
       </div>
       <div class="fld"><label>ประเภทอุปกรณ์</label>
-        <select id="rp-type">
-          <option>คอมพิวเตอร์</option><option>เครื่องพิมพ์</option>
-          <option>เครือข่าย</option><option>โทรศัพท์</option><option>จอภาพ</option><option>อื่นๆ</option>
-        </select>
+        <select id="rp-type"><option value="">-- เลือกประเภท --</option></select>
       </div>
     </div>
     <div class="fld"><label>อาการ / ปัญหา *</label>
@@ -8386,5 +8284,768 @@ function cancelDeviceImport() {
   color: #6b7280 !important;
 }
 </style>
+<script>
+const SRP_DEPARTMENTS = [
+    {code:"1000",name:"Administrator"},
+    {code:"9999",name:"NTEQ-Management"},
+    {code:"1107",name:"NTEQ-HR&ADMIN"},
+    {code:"1003",name:"NTEQ-BD"},
+    {code:"1208",name:"NTEQ-Safety"},
+    {code:"1201",name:"NTEQ-Production"},
+    {code:"1207",name:"NTEQ-Quality Control"},
+    {code:"1209",name:"NTEQ-Environment"},
+    {code:"1009",name:"NTEQ-Accounting&Finance"},
+    {code:"1600",name:"NTEQ-R&D"},
+    {code:"1104",name:"NTEQ-Purchase&Raw material"},
+    {code:"1121",name:"NTEQ-TSR HP"},
+    {code:"1204",name:"NTEQ-DRY"},
+    {code:"1206",name:"NTEQ-Maintenance"},
+    {code:"1700",name:"NTEQ-Technical"},
+    {code:"1203",name:"NTEQ-Wet Line"},
+    {code:"1111",name:"NTEQ-Sustainability"},
+    {code:"1501",name:"NTEQ-Operation&Marketing"},
+    {code:"1109",name:"NTEQ-IT"},
+    {code:"9998",name:"NCT-Management"},
+    {code:"2001",name:"NCT-Operation"},
+    {code:"2003",name:"NCT-Purchase"},
+    {code:"2004",name:"NCT-QC"},
+    {code:"2005",name:"NCT-Safety"},
+    {code:"2000",name:"NCT-IT"},
+    {code:"2006",name:"NCT-Factory"},
+    {code:"2007",name:"NCT-HR&ADMIN"},
+    {code:"3001",name:"SVP-IT"},
+    {code:"3002",name:"SVP-Production"},
+    {code:"3003",name:"SVP-Purchase"},
+    {code:"3004",name:"SVP-Account"},
+    {code:"3005",name:"SVP-HR"},
+    {code:"3006",name:"SVP-NY"},
+    {code:"3007",name:"SVP-QC"},
+    {code:"3008",name:"SVP-RM"},
+    {code:"3009",name:"SVP-Safety"},
+    {code:"3010",name:"SVP-Shipping"},
+    {code:"3011",name:"SVP-Technical"}
+];
+const SRP_DEVICE_CATEGORIES = [
+    {code:"001",name:"Software",types:[{code:"001-001",name:"Operating system"},{code:"001-002",name:"Microsoft Office"},{code:"001-003",name:"Program"},{code:"001-004",name:"Cloud"}]},
+    {code:"002",name:"COMPUTER",types:[{code:"002-001",name:"Desktop PC"},{code:"002-002",name:"Notebook"},{code:"002-003",name:"Monitor"},{code:"002-004",name:"Memory"},{code:"002-005",name:"Flash Drive"},{code:"002-007",name:"Mouse"},{code:"002-008",name:"Keyboard"},{code:"002-019",name:"Server"},{code:"002-020",name:"Storage"},{code:"002-021",name:"UPS"}]},
+    {code:"003",name:"NETWORK",types:[{code:"009",name:"CABLE"},{code:"010",name:"Switch"},{code:"011",name:"Access point"}]},
+    {code:"004",name:"Mobile phone",types:[{code:"004-001",name:"Mobile Android"},{code:"004-002",name:"Mobile iOS"},{code:"004-003",name:"Mobile Number"}]},
+    {code:"005",name:"CCTV",types:[{code:"012",name:"DVR"},{code:"013",name:"IP Camera"}]},
+    {code:"006",name:"Microphone conference",types:[{code:"006001",name:"Speaker"}]},
+    {code:"007",name:"WEBCAM / CAMERA",types:[{code:"007001",name:"CAMERA"}]},
+    {code:"008",name:"UPS",types:[]},
+    {code:"009",name:"SIM",types:[{code:"009001",name:"AIS"},{code:"009002",name:"TRUE"}]},
+    {code:"010",name:"SVP-Software",types:[{code:"010-001",name:"Operating system"},{code:"010-002",name:"Microsoft Office"},{code:"010-003",name:"Program"},{code:"010-004",name:"Cloud"}]},
+    {code:"011",name:"SVP-Computer",types:[{code:"011-001",name:"Desktop PC"},{code:"011-002",name:"Notebook"},{code:"011-003",name:"Monitor"},{code:"011-004",name:"Memory"},{code:"011-005",name:"Flash Drive"},{code:"011-006",name:"Mouse"},{code:"011-007",name:"Keyboard"},{code:"011-008",name:"Server"},{code:"011-009",name:"Storage"}]},
+    {code:"012",name:"SVP-Network",types:[{code:"012-001",name:"CABLE"},{code:"012-002",name:"Switch"},{code:"012-003",name:"Access point"}]},
+    {code:"013",name:"SVP-Mobile",types:[{code:"013-001",name:"Mobile Android"},{code:"013-002",name:"Mobile iOS"},{code:"013-003",name:"Mobile Number"}]},
+    {code:"014",name:"SVP-CCTV",types:[{code:"014-001",name:"DVR"},{code:"014-002",name:"IP Camera"}]}
+];
+
+(function(){
+'use strict';
+document.addEventListener('click',function(e){
+  document.querySelectorAll('.srp-select-wrap.open').forEach(function(w){
+    if(!w.contains(e.target)) w.classList.remove('open');
+  });
+});
+
+window.srpInitSelect=function(cfg){
+  var orig=document.getElementById(cfg.targetId);
+  if(!orig) return null;
+  var wrap=document.createElement('div');
+  wrap.className='srp-select-wrap';
+  wrap.dataset.srpId=cfg.targetId;
+
+  var ph=cfg.placeholder||'-- เลือก --';
+
+  /* ── สร้าง HTML ─────────────────────────────────────── */
+  wrap.innerHTML=
+    '<div class="srp-select-input" tabindex="0">'
+      +'<span class="srp-si-text">'+ph+'</span>'
+      +'<span class="srp-select-arrow">&#9660;</span>'
+    +'</div>'
+    +'<div class="srp-dropdown">'
+      +'<div class="srp-search-wrap">'
+        +'<input class="srp-search-inp" type="text" placeholder="ค้นหาด้วยชื่อเต็ม..." autocomplete="off" spellcheck="false">'
+        +'<span class="srp-search-icon">🔍</span>'
+        +'<span class="srp-search-hint" id="srp-hint-'+cfg.targetId+'">พิมพ์อย่างน้อย 2 ตัวอักษร</span>'
+      +'</div>'
+      +'<div class="srp-options"></div>'
+    +'</div>';
+
+  orig.parentNode.replaceChild(wrap,orig);
+  wrap._srpSetValue=function(val){
+    try{
+      var found=null;
+      (_opts||[]).forEach(function(o){if(String(o.value!==undefined?o.value:o)===String(val))found=o;});
+      var st=wrap.querySelector('.srp-si-text');
+      if(found){if(st)st.textContent=found.label||found.value||found;origVal=String(val);}
+      else{if(st)st.textContent=ph;origVal='';}
+      if(orig2)orig2.value=origVal;
+      if(typeof cfg.onChange==='function')cfg.onChange(origVal);
+    }catch(ex){console.warn('_srpSetValue err',ex);}
+  };
+  wrap._srpGetValue=function(){return origVal||'';};
+
+  var siText  = wrap.querySelector('.srp-si-text');
+  var display = wrap.querySelector('.srp-select-input');
+  var searchInp=wrap.querySelector('.srp-search-inp');
+  var hintEl  = wrap.querySelector('.srp-search-hint');
+  var optList =wrap.querySelector('.srp-options');
+  var _opts   =cfg.options||[];
+  var _val    ='';
+  var _ph     =ph;
+  var _emptyLbl=cfg.emptyLabel||'-- ทั้งหมด --';
+  var _allowEmpty=cfg.allowEmpty!==false;
+  var _debounceTimer=null;
+  var _pendingVal=null;  // รออนุมัติก่อนเลือก
+  var _pendingLbl='';
+
+  /* ── Highlight ข้อความที่ตรงกับ q ─────────────────── */
+  function _hl(str,q){
+    if(!q) return str;
+    var idx=str.toLowerCase().indexOf(q.toLowerCase());
+    if(idx===-1) return str;
+    return str.slice(0,idx)+'<mark>'+str.slice(idx,idx+q.length)+'</mark>'+str.slice(idx+q.length);
+  }
+
+  /* ── ตรวจ strict match: ต้องมี q ใน label เท่านั้น (ไม่รวม group) ── */
+  function _matches(lbl,q){
+    if(!q) return true;
+    return lbl.toLowerCase().indexOf(q.toLowerCase())!==-1;
+  }
+
+  /* ── Render options (debounced) ─────────────────────── */
+  function renderOpts(q){
+    q=(q||'').trim();
+    var tooShort=(q.length>0&&q.length<2);
+
+    /* hint text */
+    if(tooShort){
+      hintEl.textContent='พิมพ์อย่างน้อย 2 ตัวอักษร';
+      hintEl.style.display='block';
+    } else {
+      hintEl.style.display='none';
+    }
+
+    if(tooShort){
+      optList.innerHTML='<div class="srp-option no-result" style="color:#999;font-style:italic">พิมพ์ตัวอักษรเพิ่มเพื่อค้นหา...</div>';
+      return;
+    }
+
+    var html='';
+    var lastGrp=null;
+    var cnt=0;
+    if(_allowEmpty&&!q) html+='<div class="srp-option srp-empty-opt" data-value="">'+_emptyLbl+'</div>';
+
+    _opts.forEach(function(o){
+      var lbl=o.label||o.name||'';
+      var grp=o.group||'';
+      /* strict: ค้นหาใน label เท่านั้น (ไม่รวม group name เพื่อให้ยากขึ้น) */
+      if(q&&!_matches(lbl,q)) return;
+      if(grp&&grp!==lastGrp){
+        html+='<div class="srp-optgroup-label"><span class="srp-grp-ico">▸</span>'+grp+'</div>';
+        lastGrp=grp;
+      }
+      var val=o.value!==undefined?o.value:lbl;
+      var sel=(val===_val)?' selected':'';
+      var indent=o.group?' srp-opt-child':'';
+      var colorDot=o.color?'<span class="srp-dot" style="background:'+o.color+'"></span>':'';
+      html+='<div class="srp-option'+sel+indent+'" data-value="'+val.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'">'+colorDot+_hl(lbl,q)+'</div>';
+      cnt++;
+    });
+    if(!cnt&&q) html+='<div class="srp-option no-result">ไม่พบ "'+q+'"</div>';
+    optList.innerHTML=html;
+
+    /* bind click → ขอยืนยันก่อนเสมอ */
+    optList.querySelectorAll('.srp-option:not(.no-result):not(.srp-optgroup-label)').forEach(function(el){
+      el.addEventListener('click',function(e){
+        e.stopPropagation();
+        var v=el.dataset.value;
+        if(v===undefined||v==='') {
+          /* empty option ไม่ต้องยืนยัน */
+          _commit(v,el.textContent.trim());
+          return;
+        }
+        _pendingVal=v;
+        _pendingLbl=el.textContent.replace(/^\s*▸?\s*/,'').trim();
+        _showConfirm(_pendingLbl);
+      });
+    });
+  }
+
+  /* ── กล่องยืนยัน ────────────────────────────────────── */
+  function _showConfirm(lbl){
+    var existing=wrap.querySelector('.srp-confirm-bar');
+    if(existing) existing.remove();
+    var bar=document.createElement('div');
+    bar.className='srp-confirm-bar';
+    bar.innerHTML=
+      '<div class="srp-confirm-msg">เลือก <strong>"'+lbl+'"</strong>?</div>'
+      +'<div class="srp-confirm-btns">'
+        +'<button class="srp-btn-ok">✓ ยืนยัน</button>'
+        +'<button class="srp-btn-cancel">✕ ยกเลิก</button>'
+      +'</div>';
+    wrap.querySelector('.srp-dropdown').appendChild(bar);
+    bar.querySelector('.srp-btn-ok').addEventListener('click',function(e){
+      e.stopPropagation();
+      _commit(_pendingVal,_pendingLbl);
+      bar.remove();
+    });
+    bar.querySelector('.srp-btn-cancel').addEventListener('click',function(e){
+      e.stopPropagation();
+      _pendingVal=null; _pendingLbl='';
+      bar.remove();
+    });
+  }
+
+  function _commit(v,lbl){
+    _val=v;
+    siText.textContent=v?lbl:_ph;
+    wrap.dataset.value=v;
+    wrap.classList.remove('open');
+    if(cfg.onChange) cfg.onChange(v,lbl);
+  }
+
+  /* ── Open/close ─────────────────────────────────────── */
+  display.addEventListener('click',function(e){
+    e.stopPropagation();
+    var wasOpen=wrap.classList.contains('open');
+    document.querySelectorAll('.srp-select-wrap.open').forEach(function(w){ w.classList.remove('open'); });
+    if(!wasOpen){
+      wrap.classList.add('open');
+      searchInp.value='';
+      hintEl.textContent='พิมพ์อย่างน้อย 2 ตัวอักษร';
+      hintEl.style.display='block';
+      renderOpts('');
+      setTimeout(function(){ searchInp.focus(); },60);
+    }
+  });
+
+  /* ── Debounce input 400ms ────────────────────────────── */
+  searchInp.addEventListener('input',function(){
+    var q=this.value;
+    /* แสดง hint ทันทีถ้าสั้นเกิน */
+    if(q.length>0&&q.length<2){
+      hintEl.textContent='พิมพ์อย่างน้อย 2 ตัวอักษร';
+      hintEl.style.display='block';
+      optList.innerHTML='<div class="srp-option no-result" style="color:#999;font-style:italic">พิมพ์ตัวอักษรเพิ่มเพื่อค้นหา...</div>';
+      return;
+    }
+    if(_debounceTimer) clearTimeout(_debounceTimer);
+    _debounceTimer=setTimeout(function(){ renderOpts(q); },400);
+  });
+  searchInp.addEventListener('click',function(e){ e.stopPropagation(); });
+
+  /* ── Public API ─────────────────────────────────────── */
+  wrap.getValue=function(){ return _val; };
+  wrap.setValue=function(v,silent){
+    var o=_opts.find(function(x){ return (x.value!==undefined?x.value:x.label)===v||x.label===v; });
+    _val=o?(o.value!==undefined?o.value:o.label):'';
+    siText.textContent=o?(o.label||o.name):_ph;
+    wrap.dataset.value=_val;
+    if(!silent&&cfg.onChange) cfg.onChange(_val,o?o.label:'');
+  };
+  wrap.setOptions=function(arr){ _opts=arr; };
+
+  window._srpWraps=window._srpWraps||{};
+  window._srpWraps[cfg.targetId]=wrap;
+  return wrap;
+};
+
+
+window.srpVal=function(id){
+  if(window._srpWraps&&window._srpWraps[id]) return window._srpWraps[id].getValue();
+  var el=document.getElementById(id); return el?el.value:'';
+};
+window.srpSet=function(id,v,silent){
+  if(window._srpWraps&&window._srpWraps[id]) window._srpWraps[id].setValue(v,silent);
+};
+})();
+
+function buildDeptOptions(includeAll){
+  var opts=[];
+  if(includeAll) opts.push({value:'',label:'ทุกแผนก'});
+  SRP_DEPARTMENTS.forEach(function(d){
+    var g='อื่นๆ'; var n=parseInt(d.code);
+    if(d.code==='1000') g='Administrator';
+    else if(n>=1000&&n<2000) g='NTEQ';
+    else if(n>=2000&&n<3000) g='NCT';
+    else if(n>=3000&&n<4000) g='SVP';
+    else if(d.code.startsWith('9')) g='NTEQ';
+    opts.push({value:d.name,label:d.name,group:g});
+  });
+  return opts;
+}
+function buildCatOptions(){
+  return SRP_DEVICE_CATEGORIES.map(function(c){ return {value:c.name,label:c.name}; });
+}
+function buildSubtypeOptions(catName){
+  if(!catName) return [];
+  var c=SRP_DEVICE_CATEGORIES.find(function(x){ return x.name===catName; });
+  if(!c||!c.types||!c.types.length) return [];
+  return c.types.map(function(t){ return {value:t.name,label:t.name}; });
+}
+
+function initAllSrpSelects(){
+  srpInitSelect({targetId:'f-dept',placeholder:'-- เลือกแผนก --',options:buildDeptOptions(false),allowEmpty:false,
+    onChange:function(v){ if(typeof renderRequests==='function') renderRequests(); }});
+  srpInitSelect({targetId:'flt-dept',placeholder:'ทุกแผนก',options:buildDeptOptions(true),allowEmpty:true,emptyLabel:'ทุกแผนก',
+    onChange:function(v){ if(typeof renderApprove==='function') renderApprove(); }});
+  srpInitSelect({targetId:'dev-m-dept',placeholder:'หน่วยงาน / แผนก',options:buildDeptOptions(false),allowEmpty:false,onChange:function(){}});
+  srpInitSelect({targetId:'dev-m-type',placeholder:'หมวดหมู่อุปกรณ์',options:buildCatOptions(),allowEmpty:false,
+    onChange:function(v){
+      srpInitSelect({targetId:'dev-m-subtype',placeholder:'ประเภทอุปกรณ์',options:buildSubtypeOptions(v),allowEmpty:false,onChange:function(){}});
+    }});
+  srpInitSelect({targetId:'dev-m-subtype',placeholder:'ประเภทอุปกรณ์',options:[],allowEmpty:false,onChange:function(){}});
+  srpInitSelect({targetId:'mu-dept',placeholder:'-- เลือกแผนก --',options:buildDeptOptions(false),allowEmpty:false,onChange:function(){}});
+  srpInitSelect({targetId:'rp-dept',placeholder:'-- เลือกแผนก --',options:buildDeptOptions(false),allowEmpty:false,onChange:function(){}});
+  srpInitSelect({targetId:'rflt-type',placeholder:'ทั้งหมด',options:buildCatOptions(),allowEmpty:true,emptyLabel:'ทั้งหมด',
+    onChange:function(v){ if(typeof renderRepair==='function') renderRepair(); }});
+  srpInitSelect({targetId:'rp-type',placeholder:'-- เลือกประเภท --',options:buildCatOptions(),allowEmpty:false,onChange:function(){}});
+  console.log('[SRP] Searchable selects OK');
+}
+</script>
+
+<script>
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(initAllSrpSelects,150); });
+} else {
+  setTimeout(initAllSrpSelects,150);
+}
+</script>
+
+
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   Searchable User Dropdown สำหรับฟอร์มอุปกรณ์ (dev-m-user)
+   ────────────────────────────────────────────────────────────────── */
+function _buildDevUserOptions() {
+  /* ดึงจาก window.users → fallback → DEFAULT_USERS */
+  var src = [];
+  if (window.users && window.users.length) src = window.users;
+  else if (typeof users !== 'undefined' && users.length) src = users;
+  else if (typeof DEFAULT_USERS !== 'undefined') src = DEFAULT_USERS;
+  var allU = src.filter(function(u){ return u.active !== false; });
+
+  /* จัดกลุ่มตาม dept */
+  var groups = {};
+  allU.forEach(function(u){
+    var g = u.dept || 'ไม่ระบุแผนก';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(u);
+  });
+
+  var items = [];
+  Object.keys(groups).sort().forEach(function(g){
+    items.push({ type:'group', label: g });
+    groups[g].sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','th'); })
+    .forEach(function(u){
+      items.push({ type:'item', value: u.name, label: u.name, sub: u.dept||'', user: u });
+    });
+  });
+  return items;
+}
+
+
+
+
+function _devUserOptions(setVal) {
+  var listEl = document.getElementById('dev-user-list');
+  if (!listEl) return;
+  var allU = [];
+  if (window.users && window.users.length > 0) {
+    allU = window.users.filter(function(u){ return u.active !== false; });
+  } else if (typeof DEFAULT_USERS !== 'undefined') {
+    allU = DEFAULT_USERS.filter(function(u){ return u.active !== false; });
+  }
+  var groups = {};
+  allU.forEach(function(u){
+    var g = u.dept || 'ไม่ระบุแผนก';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(u);
+  });
+  var rows = [];
+  var deptKeys = Object.keys(groups).sort();
+  deptKeys.forEach(function(g){
+    rows.push({type:'group', label:g});
+    groups[g].sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','th'); }).forEach(function(u){
+      rows.push({type:'item', id: u.id||u.name, name: u.name||'', dept: u.dept||''});
+    });
+  });
+
+  var colors = ['#16a34a','#2563eb','#9333ea','#ea580c','#0891b2'];
+  var frag = '';
+  frag += '<div class="dud-clear-row" style="padding:8px 12px;cursor:pointer;color:#6b7280;font-style:italic;font-size:13px;border-bottom:1px solid #f3f4f6" data-clear="1">-- ล้างการเลือก --</div>';
+  if (rows.length === 0) {
+    frag += '<div style="padding:12px;color:#9ca3af;font-size:13px;text-align:center">ไม่พบผู้ใช้งาน</div>';
+  }
+  rows.forEach(function(r){
+    if (r.type === 'group') {
+      frag += '<div style="padding:4px 12px;font-size:11px;font-weight:700;color:#9ca3af;background:#f9fafb;text-transform:uppercase;letter-spacing:.05em;pointer-events:none">' + r.label + '</div>';
+    } else {
+      var col = colors[(r.name||'').charCodeAt(0) % colors.length];
+      var initials = (r.name||'?').charAt(0).toUpperCase();
+      var isSel = (setVal && (r.id === setVal || r.name === setVal)) ? 'background:#eff6ff;font-weight:600;' : '';
+      frag += '<div class="dud-row-item" style="padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;' + isSel + '"'
+            + ' data-uid="' + r.id.replace(/"/g,'&quot;') + '" data-uname="' + r.name.replace(/"/g,'&quot;') + '">'
+            + '<span style="width:26px;height:26px;border-radius:50%;background:' + col + ';color:#fff;'
+            + 'display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'
+            + initials + '</span>'
+            + '<span>' + r.name + '</span></div>';
+    }
+  });
+  listEl.innerHTML = frag;
+
+  // event delegation — คลิกทั่วทั้ง list
+  listEl.onclick = function(e) {
+    var row = e.target.closest('.dud-row-item');
+    var clr = e.target.closest('.dud-clear-row');
+    if (row) {
+      var uid = row.dataset.uid || '';
+      var uname = row.dataset.uname || '';
+      document.getElementById('dev-m-user').value = uid;
+      var lbl = document.getElementById('dev-user-label');
+      if (lbl) { lbl.textContent = uname; lbl.style.color = '#111827'; }
+      closeDevUserDropdown();
+    } else if (clr) {
+      document.getElementById('dev-m-user').value = '';
+      var lbl2 = document.getElementById('dev-user-label');
+      if (lbl2) { lbl2.textContent = '-- เลือกผู้ใช้งาน --'; lbl2.style.color = '#9ca3af'; }
+      closeDevUserDropdown();
+    }
+  };
+
+  // ถ้า setVal ให้อัปเดต label
+  if (setVal) {
+    var inp = document.getElementById('dev-m-user');
+    var lbl3 = document.getElementById('dev-user-label');
+    if (inp) inp.value = setVal;
+    if (lbl3) {
+      var found = allU.find(function(u){ return (u.id||u.name) === setVal || u.name === setVal; });
+      if (found) { lbl3.textContent = found.name; lbl3.style.color = '#111827'; }
+    }
+  }
+}
+
+function toggleDevUserDropdown() {
+  const panel = document.getElementById('dev-user-panel');
+  const arrow = document.getElementById('dev-user-arrow');
+  const trigger = document.getElementById('dev-user-trigger');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  if (isOpen) {
+    closeDevUserDropdown();
+  } else {
+    _devUserOptions(); /* refresh list */
+    panel.style.display = 'block';
+    arrow.style.transform = 'rotate(180deg)';
+    trigger.style.borderColor = '#22c55e';
+    trigger.style.boxShadow = '0 0 0 2px rgba(34,197,94,.15)';
+    setTimeout(() => {
+      const s = document.getElementById('dev-user-search');
+      if (s) { s.value = ''; filterDevUsers(); s.focus(); }
+    }, 50);
+  }
+}
+
+function closeDevUserDropdown() {
+  const panel = document.getElementById('dev-user-panel');
+  const arrow = document.getElementById('dev-user-arrow');
+  const trigger = document.getElementById('dev-user-trigger');
+  if (panel) panel.style.display = 'none';
+  if (arrow) arrow.style.transform = '';
+  if (trigger) { trigger.style.borderColor = ''; trigger.style.boxShadow = ''; }
+}
+
+function selectDevUser(val, label, isPlaceholder) {
+  const hidden = document.getElementById('dev-m-user');
+  const labelEl = document.getElementById('dev-user-label');
+  if (hidden) hidden.value = val || '';
+  if (labelEl) {
+    labelEl.textContent = label || '-- เลือกผู้ใช้งาน --';
+    labelEl.style.color = (val && !isPlaceholder) ? '#111827' : '#9ca3af';
+  }
+  closeDevUserDropdown();
+}
+
+function filterDevUsers() {
+  var q = ((document.getElementById('dev-user-search')||{}).value||'').toLowerCase().trim();
+  var listEl = document.getElementById('dev-user-list');
+  if (!listEl) return;
+  listEl.querySelectorAll('.dud-row-item').forEach(function(el){
+    var nm = (el.dataset.uname||'').toLowerCase();
+    el.style.display = (!q || nm.indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+
+/* ปิด dropdown เมื่อคลิกนอก */
+document.addEventListener('click', function(e) {
+  const wrapper = document.getElementById('dev-user-dropdown');
+  if (wrapper && !wrapper.contains(e.target)) closeDevUserDropdown();
+});
+
+/* ── Dev-User Searchable Dropdown ─────────────────────────── */
+function _buildDevUserList(q) {
+  const list = document.getElementById('dev-user-list');
+  if (!list) return;
+  const allUsers = (window.users || (typeof users !== 'undefined' ? users : null) || []).filter(u => u.active !== false);
+  const filtered = q ? allUsers.filter(u => 
+    (u.name||'').toLowerCase().includes(q.toLowerCase()) ||
+    (u.dept||'').toLowerCase().includes(q.toLowerCase()) ||
+    (u.emp||'').toLowerCase().includes(q.toLowerCase())
+  ) : allUsers;
+  
+  // group by dept
+  const groups = {};
+  filtered.forEach(u => {
+    const g = u.dept || 'ไม่ระบุแผนก';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(u);
+  });
+  
+  const curVal = (document.getElementById('dev-m-user')||{}).value || '';
+  let html_str = '';
+  
+  // clear option
+  html_str += `<div onclick="selectDevUser('','-- ล้างการเลือก --')" style="padding:8px 12px;cursor:pointer;color:#6b7280;font-size:13px;border-bottom:1px solid #f5f5f5"
+    onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+    — ล้างการเลือก —
+  </div>`;
+  
+  if (filtered.length === 0) {
+    html_str += '<div style="padding:16px;text-align:center;color:#9ca3af;font-size:13px">ไม่พบผู้ใช้งาน</div>';
+  } else {
+    Object.keys(groups).sort().forEach(g => {
+      html_str += `<div style="padding:5px 12px 3px;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;background:#f9fafb;border-top:1px solid #f0f0f0">${g}</div>`;
+      groups[g].sort((a,b)=>(a.name||'').localeCompare(b.name||'','th')).forEach(u => {
+        const isActive = u.id === curVal || u.name === curVal;
+        const initials = (u.name||'U').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+        html_str += `<div onclick="selectDevUser('${u.id}','${(u.name||'').replace(/'/g,"\'")}',this)"
+          style="padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:9px;font-size:13px;background:${isActive?'#2563eb':'transparent'};color:${isActive?'#fff':'#111827'}"
+          onmouseover="this.style.background=this.dataset.sel==='1'?'#1d4ed8':'#f0f7ff'" 
+          onmouseout="this.style.background=this.dataset.sel==='1'?'#2563eb':'transparent'"
+          data-sel="${isActive?'1':'0'}">
+          <div style="width:26px;height:26px;border-radius:50%;background:${isActive?'rgba(255,255,255,0.3)':'#16a34a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${initials}</div>
+          <div>
+            <div style="font-weight:${isActive?'700':'500'}">${u.name||''}</div>
+            ${u.emp ? `<div style="font-size:11px;opacity:.7">${u.emp}</div>` : ''}
+          </div>
+        </div>`;
+      });
+    });
+  }
+  list.innerHTML = html_str;
+}
+
+function toggleDevUserDD() {
+  const panel = document.getElementById('dev-user-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display === 'flex';
+  if (isOpen) {
+    panel.style.display = 'none';
+  } else {
+    panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
+    _buildDevUserList('');
+    const search = document.getElementById('dev-user-search');
+    if (search) { search.value = ''; search.focus(); }
+  }
+}
+
+function filterDevUserDD() {
+  const q = (document.getElementById('dev-user-search')||{}).value || '';
+  _buildDevUserList(q);
+}
+
+
+
+// close dropdown on outside click
+document.addEventListener('click', function(e) {
+  const dd = document.getElementById('dev-user-dropdown');
+  if (dd && !dd.contains(e.target)) {
+    const panel = document.getElementById('dev-user-panel');
+    if (panel) panel.style.display = 'none';
+  }
+});
+/* ── End Dev-User Dropdown ──────────────────────────────────── */
+</script>
+
+<style id="no-white-frames-css">
+/* ลบกรอบขาวทุกที่ */
+.card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.card::before { display:none !important; }
+
+/* page-hd — ไม่มีกรอบ */
+.page-hd {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* main background */
+main { background: transparent !important; }
+
+/* metrics card */
+.metric-card {
+  background: rgba(255,255,255,0.07) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  box-shadow: none !important;
+}
+
+/* section wrappers */
+.section > .card,
+.section > div > .card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ข้อมูลงานซ่อม section */
+.info-box, .section-box, .box-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+</style>
+
+<style id="srp-pagehead-fix">
+/* ── หัวข้อหน้า (page-hd) ไม่มีกรอบ ── */
+.page-hd {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+.page-hd > div:first-child {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* ── content area ที่ไม่ใช่ page-hd ให้มีกรอบตามปกติ ── */
+/* ไม่ต้องแก้อะไร ปล่อยให้ block 7/9 ทำงาน */
+</style>
 </body>
 </html>
+<style id="srp-upgraded-style">
+/* ══════════════════════════════════════════
+   SRP SELECT  — Upgraded (harder + prettier)
+══════════════════════════════════════════ */
+.srp-select-wrap{position:relative;display:inline-block;width:100%;font-family:'Sarabun',sans-serif;}
+.srp-select-input{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px;background:#fff;border:1.5px solid #c8d6e5;
+  border-radius:6px;cursor:pointer;user-select:none;min-height:36px;
+  font-size:14px;color:#2d3a4a;transition:border-color .2s,box-shadow .2s;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.srp-select-input:hover{border-color:#4a90d9;}
+.srp-select-wrap.open .srp-select-input{
+  border-color:#1a73e8;border-bottom-left-radius:0;border-bottom-right-radius:0;
+  box-shadow:0 0 0 3px rgba(26,115,232,.12);
+}
+.srp-si-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.srp-select-arrow{font-size:10px;color:#7a8fa6;margin-left:6px;transition:transform .2s;}
+.srp-select-wrap.open .srp-select-arrow{transform:rotate(180deg);}
+
+/* dropdown panel */
+.srp-dropdown{
+  display:none;position:absolute;top:100%;left:0;right:0;z-index:9999;
+  background:#fff;border:1.5px solid #1a73e8;border-top:none;
+  border-bottom-left-radius:6px;border-bottom-right-radius:6px;
+  box-shadow:0 8px 24px rgba(0,0,0,.14);overflow:hidden;
+}
+.srp-select-wrap.open .srp-dropdown{display:block;}
+
+/* search box */
+.srp-search-wrap{
+  position:relative;padding:8px 10px 4px;
+  border-bottom:1px solid #e8edf2;background:#f8fbff;
+}
+.srp-search-inp{
+  width:100%;padding:7px 32px 7px 10px;
+  border:1.5px solid #c8d6e5;border-radius:5px;
+  font-size:13px;font-family:'Sarabun',sans-serif;
+  outline:none;background:#fff;box-sizing:border-box;
+  transition:border-color .2s,box-shadow .2s;
+}
+.srp-search-inp:focus{border-color:#1a73e8;box-shadow:0 0 0 2px rgba(26,115,232,.15);}
+.srp-search-icon{
+  position:absolute;right:18px;top:50%;transform:translateY(-60%);
+  font-size:14px;pointer-events:none;opacity:.5;
+}
+.srp-search-hint{
+  display:block;font-size:11px;color:#e67e22;
+  padding:2px 2px 4px;font-style:italic;
+}
+
+/* options list */
+.srp-options{max-height:240px;overflow-y:auto;padding:4px 0;}
+.srp-options::-webkit-scrollbar{width:5px;}
+.srp-options::-webkit-scrollbar-thumb{background:#c8d6e5;border-radius:3px;}
+
+/* group label */
+.srp-optgroup-label{
+  padding:5px 12px 3px;font-size:11px;font-weight:700;
+  color:#1a73e8;text-transform:uppercase;letter-spacing:.07em;
+  background:#f0f6ff;border-top:1px solid #e0ecff;
+  display:flex;align-items:center;gap:4px;
+}
+.srp-grp-ico{font-size:9px;opacity:.7;}
+
+/* option items */
+.srp-option{
+  padding:7px 14px 7px 20px;font-size:14px;cursor:pointer;
+  color:#2d3a4a;transition:background .12s;
+  display:flex;align-items:center;gap:6px;
+}
+.srp-option:hover{background:#eef4ff;color:#1a73e8;}
+.srp-option.selected{
+  background:#e8f0fe;color:#1a73e8;font-weight:600;
+}
+.srp-option.srp-empty-opt{color:#888;font-style:italic;}
+.srp-option.no-result{color:#aaa;font-style:italic;cursor:default;padding-left:14px;}
+.srp-option.srp-opt-child{padding-left:28px;font-size:13.5px;}
+
+/* highlight mark */
+.srp-option mark{
+  background:#fff3cd;color:#b45309;border-radius:2px;
+  padding:0 1px;font-weight:700;
+}
+
+/* dot color indicator */
+.srp-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  display:inline-block;
+}
+
+/* confirm bar */
+.srp-confirm-bar{
+  border-top:1px solid #fde68a;background:#fffbeb;
+  padding:8px 12px;display:flex;align-items:center;
+  justify-content:space-between;gap:8px;flex-wrap:wrap;
+}
+.srp-confirm-msg{font-size:13px;color:#92400e;flex:1;}
+.srp-confirm-msg strong{color:#b45309;}
+.srp-confirm-btns{display:flex;gap:6px;}
+.srp-btn-ok{
+  background:#16a34a;color:#fff;border:none;border-radius:4px;
+  padding:4px 12px;font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif;
+  transition:background .15s;
+}
+.srp-btn-ok:hover{background:#15803d;}
+.srp-btn-cancel{
+  background:#fff;color:#6b7280;border:1px solid #d1d5db;border-radius:4px;
+  padding:4px 10px;font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif;
+  transition:background .15s;
+}
+.srp-btn-cancel:hover{background:#f3f4f6;}
+</style>
+
