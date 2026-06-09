@@ -8,6 +8,135 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
+     ║  SRP SECURITY — Password Hashing, Session Timeout, Loading UI  ║
+     ╚══════════════════════════════════════════════════════════════════╝ -->
+<script>
+/* ── SHA-256 via Web Crypto API ─────────────────────────────────────────── */
+async function srpHash(plain) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ── Hash all DEFAULT_USERS passwords on first load (runs after DOM ready) ─ */
+async function _migratePasswords() {
+  // ถ้า user แต่ละคนยังไม่มี field hashed → hash แล้วเก็บลง localStorage
+  let changed = false;
+  for (const u of users) {
+    if (!u.hashed) {
+      u.pass   = await srpHash(u.pass);
+      u.hashed = true;
+      changed  = true;
+    }
+  }
+  if (changed) {
+    localStorage.setItem('srp_users', JSON.stringify(users));
+    window.users = users;
+  }
+}
+
+/* ── Session timeout ────────────────────────────────────────────────────── */
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 นาที
+let   _sessionTimer      = null;
+let   _sessionWarned     = false;
+
+function _resetSessionTimer() {
+  if (!window.currentUser) return;
+  clearTimeout(_sessionTimer);
+  _sessionWarned = false;
+  _sessionTimer  = setTimeout(_sessionExpiry, SESSION_TIMEOUT_MS);
+}
+
+function _sessionExpiry() {
+  if (!window.currentUser) return;
+  // แจ้งเตือน 2 นาทีก่อน logout ถ้ายังไม่เคยเตือน
+  if (!_sessionWarned) {
+    _sessionWarned = true;
+    if (typeof toast === 'function') toast('⚠️ เซสชันจะหมดอายุใน 2 นาที กรุณาบันทึกงาน', 'warn', 10000);
+    _sessionTimer = setTimeout(_sessionExpiry, 2 * 60 * 1000);
+    return;
+  }
+  // logout อัตโนมัติ
+  alert('เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่');
+  if (typeof doLogout === 'function') doLogout(true);
+}
+
+function _startSessionWatcher() {
+  ['click','keydown','mousemove','touchstart','scroll'].forEach(ev => {
+    document.addEventListener(ev, _resetSessionTimer, { passive: true });
+  });
+  _resetSessionTimer();
+}
+
+function _stopSessionWatcher() {
+  clearTimeout(_sessionTimer);
+  _sessionTimer  = null;
+  _sessionWarned = false;
+  ['click','keydown','mousemove','touchstart','scroll'].forEach(ev => {
+    document.removeEventListener(ev, _resetSessionTimer);
+  });
+}
+
+/* ── Loading overlay ────────────────────────────────────────────────────── */
+function srpShowLoading(msg) {
+  let ov = document.getElementById('srp-loading-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'srp-loading-ov';
+    ov.style.cssText = [
+      'position:fixed','inset:0','z-index:99999',
+      'display:flex','flex-direction:column',
+      'align-items:center','justify-content:center',
+      'background:rgba(5,15,10,0.78)',
+      'backdrop-filter:blur(8px)',
+      'transition:opacity .25s ease',
+      'gap:14px',
+    ].join(';');
+    ov.innerHTML = `
+      <div style="width:40px;height:40px;border:3px solid rgba(0,232,122,0.2);border-top-color:#00e87a;border-radius:50%;animation:srpSpin .75s linear infinite"></div>
+      <span id="srp-loading-msg" style="font-size:14px;color:rgba(255,255,255,0.7);font-family:'Sarabun',sans-serif;letter-spacing:.04em"></span>
+    `;
+    const style = document.createElement('style');
+    style.textContent = '@keyframes srpSpin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+  ov.style.opacity = '1';
+  const msgEl = document.getElementById('srp-loading-msg');
+  if (msgEl) msgEl.textContent = msg || 'กำลังโหลด...';
+}
+
+function srpHideLoading() {
+  const ov = document.getElementById('srp-loading-ov');
+  if (!ov) return;
+  ov.style.opacity = '0';
+  setTimeout(() => { ov.style.display = 'none'; }, 260);
+}
+
+/* ── Client-side permission guard ───────────────────────────────────────── */
+// ป้องกัน role ถูกแก้จาก DevTools โดย re-validate กับ users array ทุกครั้ง
+function srpVerifyRole() {
+  if (!window.currentUser) return false;
+  const live = (window.users || []).find(u => u.id === window.currentUser.id);
+  if (!live || !live.active) {
+    alert('บัญชีผู้ใช้ของคุณถูกระงับหรือลบออกแล้ว');
+    if (typeof doLogout === 'function') doLogout(true);
+    return false;
+  }
+  // sync role จาก source of truth
+  if (live.role !== window.currentUser.role) {
+    window.currentUser.role = live.role;
+    if (typeof applyRoleTheme === 'function') applyRoleTheme(live.role);
+    if (typeof applyRoleMenu  === 'function') applyRoleMenu(live.role);
+  }
+  return true;
+}
+
+// ตรวจสอบทุก 60 วินาทีขณะใช้งาน
+setInterval(() => { if (window.currentUser) srpVerifyRole(); }, 60000);
+</script>
+
+<!-- ╔══════════════════════════════════════════════════════════════════╗
      ║  SRP REAL-TIME SYNC  –  WebSocket Client Layer                  ║
      ║  แอดมินบันทึก → server broadcast → ทุกเครื่องอัปเดตทันที       ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
@@ -237,13 +366,14 @@ function _updateSyncBadge(online) {
     badge.id = 'sync-status-badge';
     badge.title = 'Real-time sync status';
     badge.style.cssText = [
-      'position:fixed','bottom:16px','right:16px','z-index:9999',
+      'position:fixed','top:12px','right:16px','z-index:9999',
       'display:flex','align-items:center','gap:6px',
-      'padding:6px 12px','border-radius:20px',
-      'font-size:12px','font-weight:600','letter-spacing:.03em',
+      'padding:4px 10px','border-radius:20px',
+      'font-size:11px','font-weight:600','letter-spacing:.03em',
       'box-shadow:0 2px 12px rgba(0,0,0,.35)',
       'backdrop-filter:blur(6px)',
       'transition:all .3s ease','cursor:default',
+      'pointer-events:none',
     ].join(';');
     document.body.appendChild(badge);
   }
@@ -558,17 +688,17 @@ const PERMS = {
 // ═══════════════════════════════════════
 const DEFAULT_USERS = [
   { id:'u1',    username:'admin',         pass:'1234',    name:'คุณวิภา ผู้ดูแลระบบ',            emp:'EMP-001', email:'',                               position:'Admin',                        role:'admin',    dept:'Admin',                        active:true },
-  { id:'u_k9999',  username:'kenneth',       pass:'1234',    name:'Chaipon Kerdvonbundit',           emp:'9999',    email:'kenneth@nteq-polymer.com',        position:'MD',                           role:'admin',    dept:'NTEQ-Management',              active:true },
-  { id:'u_k9998',  username:'ngohtong',      pass:'1234',    name:'ngohtong',                        emp:'9998',    email:'ngohtong@sv-polymer.com',         position:'Manager',                      role:'user',  dept:'SVP-Purchase',                 active:true },
-  { id:'u_k10156', username:'thanakorn',     pass:'1234',    name:'Thanakorn Sosan',                 emp:'10156',   email:'thanakorn@nteq-polymer.com',      position:'Assistant Manager',            role:'admin',    dept:'NTEQ-IT',                      active:true },
-  { id:'u_k0001',  username:'anutsara',      pass:'1234',    name:'Anutsara Chuipon',                emp:'0001',    email:'support03@itdigitserve.com',      position:'IT',                           role:'user',dept:'NTEQ-IT',                      active:true },
-  { id:'u_k0110031',username:'thawatchai',   pass:'1234',    name:'Thawatchai Rueanin',              emp:'0110031', email:'thawatchai.r@sv-polymer.com',     position:'Jr. Supervisor',               role:'admin',    dept:'SVP-IT',                       active:true },
-  { id:'u_k10300', username:'maliwan',       pass:'1234',    name:'Maliwan Bunrod',                  emp:'10300',   email:'maliwan.b@nteq-polymer.com',      position:'Manager',                      role:'user',  dept:'NTEQ-HR&ADMIN',                active:true },
-  { id:'u_k50041', username:'nutsara',       pass:'1234',    name:'Nutsara Nachaengtai',             emp:'50041',   email:'account_6@nteq-polymer.com',      position:'Supervisor l',                 role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k9999',  username:'kenneth',       pass:'1234',    name:'Chaipon Kerdvonbundit',           emp:'9999',    email:'',        position:'MD',                           role:'admin',    dept:'NTEQ-Management',              active:true },
+  { id:'u_k9998',  username:'ngohtong',      pass:'1234',    name:'ngohtong',                        emp:'9998',    email:'',         position:'Manager',                      role:'user',  dept:'SVP-Purchase',                 active:true },
+  { id:'u_k10156', username:'thanakorn',     pass:'1234',    name:'Thanakorn Sosan',                 emp:'10156',   email:'',      position:'Assistant Manager',            role:'admin',    dept:'NTEQ-IT',                      active:true },
+  { id:'u_k0001',  username:'anutsara',      pass:'1234',    name:'Anutsara Chuipon',                emp:'0001',    email:'',      position:'IT',                           role:'user',dept:'NTEQ-IT',                      active:true },
+  { id:'u_k0110031',username:'thawatchai',   pass:'1234',    name:'Thawatchai Rueanin',              emp:'0110031', email:'',     position:'Jr. Supervisor',               role:'admin',    dept:'SVP-IT',                       active:true },
+  { id:'u_k10300', username:'maliwan',       pass:'1234',    name:'Maliwan Bunrod',                  emp:'10300',   email:'',      position:'Manager',                      role:'user',  dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k50041', username:'nutsara',       pass:'1234',    name:'Nutsara Nachaengtai',             emp:'50041',   email:'',      position:'Supervisor l',                 role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
   { id:'u_kwalan',  username:'walan',         pass:'1234',    name:'walan pungpong',                  emp:'walan.pungpong', email:'',                         position:'',                             role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
-  { id:'u_kphut0126',username:'phuttipong',  pass:'1234',    name:'Phuttipong Sopakayung',           emp:'phut0126',email:'phuttipong.s@nteq-polymer.com',  position:'Supervisor',                   role:'user',    dept:'NTEQ-Maintenance',             active:true },
-  { id:'u_kmane1025',username:'maneerut',    pass:'1234',    name:'Maneerut Kingjan',                emp:'mane1025',email:'maneerut.k@sv-polymer.com',      position:'Supervisor',                   role:'user',    dept:'SVP-HR',                       active:true },
-  { id:'u_k50066', username:'ramet',          pass:'1234',    name:'ramet lamkham',                   emp:'50066',   email:'ramet.l@nteq-polymer.com',        position:'Supervisor',                   role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_kphut0126',username:'phuttipong',  pass:'1234',    name:'Phuttipong Sopakayung',           emp:'phut0126',email:'',  position:'Supervisor',                   role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_kmane1025',username:'maneerut',    pass:'1234',    name:'Maneerut Kingjan',                emp:'mane1025',email:'',      position:'Supervisor',                   role:'user',    dept:'SVP-HR',                       active:true },
+  { id:'u_k50066', username:'ramet',          pass:'1234',    name:'ramet lamkham',                   emp:'50066',   email:'',        position:'Supervisor',                   role:'user',    dept:'NCT-Factory',                  active:true },
   { id:'u_k50062', username:'jiranan',        pass:'1234',    name:'Jiranan Phansio',                 emp:'50062',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
   { id:'u_k50059', username:'tanyamas',       pass:'1234',    name:'Tanyamas Kassupa',                emp:'50059',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
   { id:'u_k50058', username:'chalermporn',    pass:'1234',    name:'Chalermporn Sriboon',             emp:'50058',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
@@ -576,132 +706,132 @@ const DEFAULT_USERS = [
   { id:'u_k50055', username:'natthaphong',    pass:'1234',    name:'Natthaphong Bunchuai',            emp:'50055',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Factory',                  active:true },
   { id:'u_k50054', username:'mitaree',        pass:'1234',    name:'Mitaree sansom',                  emp:'50054',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Purchase',                 active:true },
   { id:'u_k50053', username:'parichat_s',     pass:'1234',    name:'Parichat Singau',                 emp:'50053',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-QC',                       active:true },
-  { id:'u_k50052', username:'kanyaphat',      pass:'1234',    name:'Kanyaphat Ainli',                 emp:'50052',   email:'kany0323@nteq-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Environment',             active:true },
+  { id:'u_k50052', username:'kanyaphat',      pass:'1234',    name:'Kanyaphat Ainli',                 emp:'50052',   email:'',       position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Environment',             active:true },
   { id:'u_k50051', username:'thanakon',       pass:'1234',    name:'Thanakon Khammungkhun',           emp:'50051',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Factory',                  active:true },
   { id:'u_k50046', username:'pachara',        pass:'1234',    name:'Pachara Saengped',                emp:'50046',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Factory',                  active:true },
-  { id:'u_k50044', username:'supawit',        pass:'1234',    name:'Supawit Matsopa',                 emp:'50044',   email:'supa0721@nachitec.com',           position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
-  { id:'u_k50039', username:'natthachai',     pass:'1234',    name:'Natthachai Janyai',               emp:'50039',   email:'nattachai@nachitec.com',          position:'Senior Supervisor I',          role:'user',    dept:'NCT-Factory',                  active:true },
-  { id:'u_k50035', username:'raweewan',       pass:'1234',    name:'Raweewan Praposri',               emp:'50035',   email:'quality5@nachitec.com',           position:'Assistant Manager',            role:'user',    dept:'NCT-QC',                       active:true },
-  { id:'u_k50020', username:'chutchai',       pass:'1234',    name:'Chutchai Brumrong',               emp:'50020',   email:'chatchai@nachitec.com',           position:'Assistant Mgr. I',             role:'user',    dept:'NTEQ-Safety',                  active:true },
-  { id:'u_k50018', username:'wathapong',      pass:'1234',    name:'Wathapong Sama-arpat',            emp:'50018',   email:'wattapong@nachitec.com',          position:'Senior Sup I',                 role:'user',    dept:'NCT-Factory',                  active:true },
-  { id:'u_k50017', username:'anupong',        pass:'1234',    name:'Anupong Buawson',                 emp:'50017',   email:'anupong@nachitec.com',            position:'Assistant Manager ll',         role:'user',    dept:'NCT-Factory',                  active:true },
-  { id:'u_k50014', username:'duangmanee',     pass:'1234',    name:'Duangmanee Sririkam',             emp:'50014',   email:'duangmani@nachitec.com',          position:'Senior Supervisor I',          role:'user',    dept:'NCT-Purchase',                 active:true },
-  { id:'u_k50009', username:'phichayapa',     pass:'1234',    name:'Phichayapa Lekjing',              emp:'50009',   email:'hr@nachitec.com',                 position:'Supervisor ll',                role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
-  { id:'u_k50007', username:'ranuka',         pass:'1234',    name:'Ranuka Nasoke',                   emp:'50007',   email:'purchase@nachitec.com',           position:'Staff II',                     role:'user',    dept:'NCT-Purchase',                 active:true },
+  { id:'u_k50044', username:'supawit',        pass:'1234',    name:'Supawit Matsopa',                 emp:'50044',   email:'',           position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k50039', username:'natthachai',     pass:'1234',    name:'Natthachai Janyai',               emp:'50039',   email:'',          position:'Senior Supervisor I',          role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50035', username:'raweewan',       pass:'1234',    name:'Raweewan Praposri',               emp:'50035',   email:'',           position:'Assistant Manager',            role:'user',    dept:'NCT-QC',                       active:true },
+  { id:'u_k50020', username:'chutchai',       pass:'1234',    name:'Chutchai Brumrong',               emp:'50020',   email:'',           position:'Assistant Mgr. I',             role:'user',    dept:'NTEQ-Safety',                  active:true },
+  { id:'u_k50018', username:'wathapong',      pass:'1234',    name:'Wathapong Sama-arpat',            emp:'50018',   email:'',          position:'Senior Sup I',                 role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50017', username:'anupong',        pass:'1234',    name:'Anupong Buawson',                 emp:'50017',   email:'',            position:'Assistant Manager ll',         role:'user',    dept:'NCT-Factory',                  active:true },
+  { id:'u_k50014', username:'duangmanee',     pass:'1234',    name:'Duangmanee Sririkam',             emp:'50014',   email:'',          position:'Senior Supervisor I',          role:'user',    dept:'NCT-Purchase',                 active:true },
+  { id:'u_k50009', username:'phichayapa',     pass:'1234',    name:'Phichayapa Lekjing',              emp:'50009',   email:'',                 position:'Supervisor ll',                role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k50007', username:'ranuka',         pass:'1234',    name:'Ranuka Nasoke',                   emp:'50007',   email:'',           position:'Staff II',                     role:'user',    dept:'NCT-Purchase',                 active:true },
   { id:'u_k30011', username:'phanuphong',     pass:'1234',    name:'Phanuphong Chasuree',             emp:'30011',   email:'',                                position:'Supervisor II',                role:'user',    dept:'NTEQ-Technical',               active:true },
-  { id:'u_k11040', username:'gis',            pass:'1234',    name:'Gis',                             emp:'11040',   email:'nteqgis1@nteqpolymer.com',        position:'supervisor',                   role:'user',    dept:'NTEQ-Sustainability',          active:true },
-  { id:'u_k10901', username:'jittimaporn',    pass:'1234',    name:'jittimaporn Dechprathum',         emp:'10901',   email:'Jittimaporn.d@nteq-polymer.com',  position:'Supervisor',                   role:'user',    dept:'NCT-Safety',                   active:true },
-  { id:'u_k10900', username:'ratda',          pass:'1234',    name:'Ratda Waifang',                   emp:'10900',   email:'account_4@nteq-polymaer.com',     position:'Senior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
-  { id:'u_k10862', username:'saowarotjanee',  pass:'1234',    name:'Saowarotjanee Petnon',            emp:'10862',   email:'agronteq2@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k11040', username:'gis',            pass:'1234',    name:'Gis',                             emp:'11040',   email:'',        position:'supervisor',                   role:'user',    dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10901', username:'jittimaporn',    pass:'1234',    name:'jittimaporn Dechprathum',         emp:'10901',   email:'',  position:'Supervisor',                   role:'user',    dept:'NCT-Safety',                   active:true },
+  { id:'u_k10900', username:'ratda',          pass:'1234',    name:'Ratda Waifang',                   emp:'10900',   email:'',     position:'Senior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10862', username:'saowarotjanee',  pass:'1234',    name:'Saowarotjanee Petnon',            emp:'10862',   email:'',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
   { id:'u_k10860', username:'sirinapharat',   pass:'1234',    name:'Sirinapharat Chokchai',           emp:'10860',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
-  { id:'u_k10857', username:'chaiwut',        pass:'1234',    name:'chaiwut tipwonsa',                emp:'10857',   email:'chaiwut.t@nteq-polymer.com',      position:'Senior Supervisor ll',         role:'user',    dept:'NTEQ-DRY',                     active:true },
+  { id:'u_k10857', username:'chaiwut',        pass:'1234',    name:'chaiwut tipwonsa',                emp:'10857',   email:'',      position:'Senior Supervisor ll',         role:'user',    dept:'NTEQ-DRY',                     active:true },
   { id:'u_k10846', username:'sommai',         pass:'1234',    name:'Sommai Suksawat',                 emp:'10846',   email:'',                                position:'Manager',                      role:'user',  dept:'NTEQ-Production',              active:true },
   { id:'u_k10845', username:'walaiphan',      pass:'1234',    name:'Walaiphan Bunwong',               emp:'10845',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
   { id:'u_k10844', username:'natthaporn',     pass:'1234',    name:'Natthaporn Wongnonglang',         emp:'10844',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
-  { id:'u_k10842', username:'kiattisak',      pass:'1234',    name:'Kiattisak Promlai',               emp:'10842',   email:'kiattisak.p@nachitec.com',        position:'Junior Supervisor',            role:'user',    dept:'NCT-Safety',                   active:true },
+  { id:'u_k10842', username:'kiattisak',      pass:'1234',    name:'Kiattisak Promlai',               emp:'10842',   email:'',        position:'Junior Supervisor',            role:'user',    dept:'NCT-Safety',                   active:true },
   { id:'u_k10841', username:'suriyon',        pass:'1234',    name:'Suriyon Kingphetrungruang',       emp:'10841',   email:'',                                position:'CTO',                          role:'user',  dept:'NTEQ-Management',              active:true },
   { id:'u_k10839', username:'thiraphat',      pass:'1234',    name:'Thiraphat Khaengrang',            emp:'10839',   email:'',                                position:'Junior supervisor',            role:'user',    dept:'NTEQ-Wet Line',                active:true },
-  { id:'u_k10831', username:'pitiporn',       pass:'1234',    name:'Pitiporn wtttisen',               emp:'10831',   email:'quality6@nachitec.com',           position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10831', username:'pitiporn',       pass:'1234',    name:'Pitiporn wtttisen',               emp:'10831',   email:'',           position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
   { id:'u_k10829', username:'rungtawan',      pass:'1234',    name:'Rungtawan Nantapang',             emp:'10829',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-R&D',                     active:true },
   { id:'u_k10827', username:'chenchob',       pass:'1234',    name:'Chenchob Lamlert',                emp:'10827',   email:'',                                position:'Supervisor I',                 role:'user',    dept:'NTEQ-DRY',                     active:true },
   { id:'u_k10821', username:'chonthicha',     pass:'1234',    name:'chonthicha anan',                 emp:'10821',   email:'',                                position:'Assignment Supervisor I',      role:'user',    dept:'NTEQ-BD',                      active:true },
-  { id:'u_k10820', username:'laongdao',       pass:'1234',    name:'La-ongdao Sritonsa',              emp:'10820',   email:'hr@nteq-polymer.com',             position:'Supervisor I',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k10820', username:'laongdao',       pass:'1234',    name:'La-ongdao Sritonsa',              emp:'10820',   email:'',             position:'Supervisor I',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
   { id:'u_k10811', username:'warinthorn',     pass:'1234',    name:'Warinthorn Thongsang',            emp:'10811',   email:'',                                position:'Manager',                      role:'user',  dept:'NTEQ-Management',              active:true },
   { id:'u_k10658', username:'paweenuch',      pass:'1234',    name:'Paweenuch Khotsakhueng',          emp:'10658',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
-  { id:'u_k10645', username:'chatchai',       pass:'1234',    name:'Chatchai Ammukka',                emp:'10645',   email:'chat0624@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Wet Line',                active:true },
+  { id:'u_k10645', username:'chatchai',       pass:'1234',    name:'Chatchai Ammukka',                emp:'10645',   email:'',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Wet Line',                active:true },
   { id:'u_k10585', username:'rungnapa',       pass:'1234',    name:'Rungnapa Sitthi',                 emp:'10585',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
   { id:'u_k10558', username:'apisara',        pass:'1234',    name:'Apisara Soongneun',               emp:'10558',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
-  { id:'u_k10463', username:'tanapon',        pass:'1234',    name:'Tanapon Wongnaree',               emp:'10463',   email:'tanapol.w@nteq-polymer.com',      position:'Supervisor I',                 role:'user',    dept:'NTEQ-DRY',                     active:true },
-  { id:'u_k10436', username:'pornwanut',      pass:'1234',    name:'Pornwanut Manothum',              emp:'10436',   email:'pornwanut.m@nteq-polymer.com',    position:'Junior supervisor',            role:'user',    dept:'NTEQ-R&D',                     active:true },
+  { id:'u_k10463', username:'tanapon',        pass:'1234',    name:'Tanapon Wongnaree',               emp:'10463',   email:'',      position:'Supervisor I',                 role:'user',    dept:'NTEQ-DRY',                     active:true },
+  { id:'u_k10436', username:'pornwanut',      pass:'1234',    name:'Pornwanut Manothum',              emp:'10436',   email:'',    position:'Junior supervisor',            role:'user',    dept:'NTEQ-R&D',                     active:true },
   { id:'u_k10421', username:'chalita',        pass:'1234',    name:'Chalita Hima',                    emp:'10421',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NCT-Operation',                active:true },
   { id:'u_k10413', username:'somchay',        pass:'1234',    name:'Somchay Patmod',                  emp:'10413',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
   { id:'u_k10411', username:'jirunan',        pass:'1234',    name:'Jirunan Kaewkhaw',                emp:'10411',   email:'',                                position:'Supervisor l',                 role:'user',    dept:'NTEQ-Sustainability',          active:true },
   { id:'u_k10410', username:'sattawat',       pass:'1234',    name:'Sattawat Srechaiyo',              emp:'10410',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
   { id:'u_k10409', username:'sarawut',        pass:'1234',    name:'Sarawut Rakphung',                emp:'10409',   email:'',                                position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Sustainability',          active:true },
   { id:'u_k10406', username:'kittiphong',     pass:'1234',    name:'Kittiphong Obmasuy',              emp:'10406',   email:'',                                position:'Supervisor I',                 role:'user',    dept:'NTEQ-Sustainability',          active:true },
-  { id:'u_k10395', username:'pattarin',       pass:'1234',    name:'Pattarin Khotchakhueng',          emp:'10395',   email:'patt1122@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10395', username:'pattarin',       pass:'1234',    name:'Pattarin Khotchakhueng',          emp:'10395',   email:'',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
   { id:'u_k10391', username:'peerapon',       pass:'1234',    name:'Peerapon Jaitaing',               emp:'10391',   email:'',                                position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Sustainability',          active:true },
-  { id:'u_k10384', username:'thidarat',       pass:'1234',    name:'Thidarat Netwong',                emp:'10384',   email:'account_8@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
-  { id:'u_k10371', username:'satakamon',      pass:'1234',    name:'Satakamon Promjuang',             emp:'10371',   email:'satakamon.p@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-RM',                       active:true },
-  { id:'u_k10367', username:'supatchaya',     pass:'1234',    name:'Supatchaya Promwong',             emp:'10367',   email:'marketing_nteq@nteq-polymer.com', position:'Assignment Manager',           role:'user',  dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10384', username:'thidarat',       pass:'1234',    name:'Thidarat Netwong',                emp:'10384',   email:'',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10371', username:'satakamon',      pass:'1234',    name:'Satakamon Promjuang',             emp:'10371',   email:'',      position:'Junior Supervisor',            role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k10367', username:'supatchaya',     pass:'1234',    name:'Supatchaya Promwong',             emp:'10367',   email:'', position:'Assignment Manager',           role:'user',  dept:'NTEQ-Operation&Marketing',     active:true },
   { id:'u_k10364', username:'rattaya',        pass:'1234',    name:'Rattaya Chananet',                emp:'10364',   email:'',                                position:'Assistant Manager',            role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
-  { id:'u_k10361', username:'yanisa',         pass:'1234',    name:'Yanisa Kongsi',                   emp:'10361',   email:'marketing@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Operation&Marketing',     active:true },
-  { id:'u_k10358', username:'pratchaya',      pass:'1234',    name:'Pratchaya Pongwongprasert',       emp:'10358',   email:'prat0623@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Maintenance',             active:true },
-  { id:'u_k10355', username:'tanapan',        pass:'1234',    name:'Tanapan Kotti',                   emp:'10355',   email:'tanapan.k@sv-polymer.com',        position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k10361', username:'yanisa',         pass:'1234',    name:'Yanisa Kongsi',                   emp:'10361',   email:'',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10358', username:'pratchaya',      pass:'1234',    name:'Pratchaya Pongwongprasert',       emp:'10358',   email:'',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10355', username:'tanapan',        pass:'1234',    name:'Tanapan Kotti',                   emp:'10355',   email:'',        position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
   { id:'u_k10354', username:'pornpan',        pass:'1234',    name:'Pornpan Muangkhote',              emp:'10354',   email:'',                                position:'Assistant Manager',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
-  { id:'u_k10350', username:'wilawan',        pass:'1234',    name:'Wilawan Meeintha',                emp:'10350',   email:'wilawan.m@sv-polymer.com',        position:'Supervisor',                   role:'user',    dept:'SVP-HR',                       active:true },
-  { id:'u_k10349', username:'arunthip',       pass:'1234',    name:'Arunthip Chompoorat',             emp:'10349',   email:'arunthip.c@nteq-polymer.com',     position:'Senior Supervisor l',          role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
-  { id:'u_k10347', username:'worachade',      pass:'1234',    name:'Worachade Khunthong',             emp:'10347',   email:'worachade.k@sv-polymer.com',      position:'Senior Supervisor',            role:'user',    dept:'SVP-Technical',                active:true },
-  { id:'u_k10341', username:'supitcha',       pass:'1234',    name:'Supitcha Klaikham',               emp:'10341',   email:'supitcha.k@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
-  { id:'u_k10340', username:'pitchaya',       pass:'1234',    name:'Pitchaya Kamseeda',               emp:'10340',   email:'pitc0123@nteq-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
-  { id:'u_k10338', username:'saisamorn',      pass:'1234',    name:'Saisamorn Khankhaeng',            emp:'10338',   email:'sais1222@nteq-polymer.com',       position:'Supervisor l',                 role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
-  { id:'u_k10333', username:'napaporn',       pass:'1234',    name:'Napaporn Roopngam',               emp:'10333',   email:'admin3@nteq-polymer.com',         position:'Assistant Supervisor I',       role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
-  { id:'u_k10332', username:'riamsiri',       pass:'1234',    name:'Riamsiri Jaisook',                emp:'10332',   email:'prd_dc1@nteq-polymer.com',        position:'Assistant Supervisor I',       role:'user',    dept:'NTEQ-Safety',                  active:true },
-  { id:'u_k10326', username:'udomrak',        pass:'1234',    name:'Udomrak Suesat',                  emp:'10326',   email:'account_5@nteq-polymer.com',      position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10350', username:'wilawan',        pass:'1234',    name:'Wilawan Meeintha',                emp:'10350',   email:'',        position:'Supervisor',                   role:'user',    dept:'SVP-HR',                       active:true },
+  { id:'u_k10349', username:'arunthip',       pass:'1234',    name:'Arunthip Chompoorat',             emp:'10349',   email:'',     position:'Senior Supervisor l',          role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10347', username:'worachade',      pass:'1234',    name:'Worachade Khunthong',             emp:'10347',   email:'',      position:'Senior Supervisor',            role:'user',    dept:'SVP-Technical',                active:true },
+  { id:'u_k10341', username:'supitcha',       pass:'1234',    name:'Supitcha Klaikham',               emp:'10341',   email:'',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k10340', username:'pitchaya',       pass:'1234',    name:'Pitchaya Kamseeda',               emp:'10340',   email:'',       position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10338', username:'saisamorn',      pass:'1234',    name:'Saisamorn Khankhaeng',            emp:'10338',   email:'',       position:'Supervisor l',                 role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10333', username:'napaporn',       pass:'1234',    name:'Napaporn Roopngam',               emp:'10333',   email:'',         position:'Assistant Supervisor I',       role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k10332', username:'riamsiri',       pass:'1234',    name:'Riamsiri Jaisook',                emp:'10332',   email:'',        position:'Assistant Supervisor I',       role:'user',    dept:'NTEQ-Safety',                  active:true },
+  { id:'u_k10326', username:'udomrak',        pass:'1234',    name:'Udomrak Suesat',                  emp:'10326',   email:'',      position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
   { id:'u_k10324', username:'chedsada',       pass:'1234',    name:'Chedsada Uantrai',                emp:'10324',   email:'',                                position:'Senior Supervisor l',          role:'user',    dept:'NTEQ-Sustainability',          active:true },
-  { id:'u_k10320', username:'thanyarat',      pass:'1234',    name:'Thanyarat changhiran',             emp:'10320',   email:'thanyarat.c@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-Shipping',                 active:true },
-  { id:'u_k10318', username:'kavinnat',       pass:'1234',    name:'Kavinnat Sripaengmon',            emp:'10318',   email:'kavinnat.s@sv-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'SVP-RM',                       active:true },
-  { id:'u_k10302', username:'thatsani',       pass:'1234',    name:'Thatsani Sangsuwan',              emp:'10302',   email:'account_7@nteq-polymer.com',      position:'Supervisor I',                 role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
-  { id:'u_k10298', username:'parichat_n',     pass:'1234',    name:'Parichat Nitisuk',                emp:'10298',   email:'pari0122@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
-  { id:'u_k10285', username:'khanitta',       pass:'1234',    name:'Khanitta Laotaew',                emp:'10285',   email:'account_2@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
-  { id:'u_k10280', username:'narongsak',      pass:'1234',    name:'Narongsak Khammoongkhun',         emp:'10280',   email:'naro0221@nteq-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Maintenance',             active:true },
-  { id:'u_k10279', username:'cherdsak',       pass:'1234',    name:'Cherdsak Thongpa',                emp:'10279',   email:'cher0121@nteq-polymer.com',       position:'Senior Supervisor Il',         role:'user',    dept:'NTEQ-Technical',               active:true },
-  { id:'u_k10275', username:'namthip',        pass:'1234',    name:'Namthip Phakaphan',               emp:'10275',   email:'marketing_1@nteq-polymer.com',    position:'Supervisor ll',                role:'user',    dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10320', username:'thanyarat',      pass:'1234',    name:'Thanyarat changhiran',             emp:'10320',   email:'',      position:'Junior Supervisor',            role:'user',    dept:'SVP-Shipping',                 active:true },
+  { id:'u_k10318', username:'kavinnat',       pass:'1234',    name:'Kavinnat Sripaengmon',            emp:'10318',   email:'',       position:'Supervisor I',                 role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k10302', username:'thatsani',       pass:'1234',    name:'Thatsani Sangsuwan',              emp:'10302',   email:'',      position:'Supervisor I',                 role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10298', username:'parichat_n',     pass:'1234',    name:'Parichat Nitisuk',                emp:'10298',   email:'',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
+  { id:'u_k10285', username:'khanitta',       pass:'1234',    name:'Khanitta Laotaew',                emp:'10285',   email:'',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10280', username:'narongsak',      pass:'1234',    name:'Narongsak Khammoongkhun',         emp:'10280',   email:'',       position:'Supervisor I',                 role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10279', username:'cherdsak',       pass:'1234',    name:'Cherdsak Thongpa',                emp:'10279',   email:'',       position:'Senior Supervisor Il',         role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10275', username:'namthip',        pass:'1234',    name:'Namthip Phakaphan',               emp:'10275',   email:'',    position:'Supervisor ll',                role:'user',    dept:'NTEQ-Operation&Marketing',     active:true },
   { id:'u_k10249', username:'pongsathon',     pass:'1234',    name:'Pongsathon Pecharawach',          emp:'10249',   email:'',                                position:'Manager',                      role:'user',  dept:'NTEQ-Purchase&Raw material',   active:true },
-  { id:'u_k10234', username:'assakorn',       pass:'1234',    name:'Assakorn Chansrimuang',           emp:'10234',   email:'assa0219@nteq-polymer.com',       position:'Supervisor II',                role:'user',    dept:'NTEQ-Wet Line',                active:true },
-  { id:'u_k10226', username:'saksakul',       pass:'1234',    name:'Saksakul Boonsankaew',            emp:'10226',   email:'technical@nteq-polymer.com',      position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Maintenance',             active:true },
-  { id:'u_k10225', username:'akhaphon',       pass:'1234',    name:'Akhaphon Butte',                  emp:'10225',   email:'akha1118@nteq-polymer.com',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-DRY',                     active:true },
-  { id:'u_k10213', username:'rattanawadee',   pass:'1234',    name:'Rattanawadee Jansong',            emp:'10213',   email:'ratt0618@nteq-polymer.com',       position:'Assignments Manager',          role:'user',  dept:'NTEQ-BD',                      active:true },
-  { id:'u_k10202', username:'yurada',         pass:'1234',    name:'Yurada Phanurak',                 emp:'10202',   email:'dccenter@nteq-polymer.com',       position:'Manager',                      role:'user',  dept:'NTEQ-BD',                      active:true },
-  { id:'u_k10176', username:'supaporn_b',     pass:'1234',    name:'Supaporn Buakaew',                emp:'10176',   email:'supa0919@nteq-polymer.com',       position:'Senior Supervisor Il',         role:'user',    dept:'NTEQ-Environment',             active:true },
-  { id:'u_k10159', username:'nobporn',        pass:'1234',    name:'Nobporn Chuklin',                 emp:'10159',   email:'nobp0916@nteq-polymer.com',       position:'Assistant Manager',            role:'user',    dept:'NTEQ-Maintenance',             active:true },
-  { id:'u_k10157', username:'phairot',        pass:'1234',    name:'Phairot Thongdee',                emp:'10157',   email:'phairot@nteq-polymer.com',        position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Technical',               active:true },
-  { id:'u_k10151', username:'ranee',          pass:'1234',    name:'Ranee Tumnasuk',                  emp:'10151',   email:'account_3@nteq-polymer.com',      position:'Assistant Manager',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
-  { id:'u_k10149', username:'waranya',        pass:'1234',    name:'Waranya Srikaew',                 emp:'10149',   email:'warunya@nteq-polymer.com',        position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
-  { id:'u_k10130', username:'chairat',        pass:'1234',    name:'Chairat Jaitrong',                emp:'10130',   email:'chai1115@nteq-polymer.com',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Technical',               active:true },
-  { id:'u_k10119', username:'pattra',         pass:'1234',    name:'Pattra Saphoo',                   emp:'10119',   email:'pattra@nteq-polymer.com',         position:'Assistant Manager',            role:'user',    dept:'NTEQ-R&D',                     active:true },
-  { id:'u_k10114', username:'supparerk',      pass:'1234',    name:'Supparerk Kwanthaisong',          emp:'10114',   email:'supparerk.k@nteq-polymer.com',    position:'Assistant Manager',            role:'user',    dept:'NTEQ-Technical',               active:true },
-  { id:'u_k10109', username:'anongluk',       pass:'1234',    name:'Anongluk Rattanachaisiriwat',     emp:'10109',   email:'safety@nteq-polymer.com',         position:'Manager',                      role:'user',  dept:'NTEQ-Safety',                  active:true },
-  { id:'u_k10103', username:'apidech',        pass:'1234',    name:'Apidech Thongsom',                emp:'10103',   email:'apid0814@nteq-polymer.com',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Quality Control',         active:true },
-  { id:'u_k10098', username:'ratchapol',      pass:'1234',    name:'Ratchapol Siriboon',              emp:'10098',   email:'AGRO@NTEQ-POLYMER.COM',           position:'Manager',                      role:'user',  dept:'NTEQ-Sustainability',          active:true },
-  { id:'u_k10090', username:'parichat_sr',    pass:'1234',    name:'Parichat Sriprasert',             emp:'10090',   email:'purchase@nteq-polymer.com',       position:'Supervisor II',                role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
-  { id:'u_k10061', username:'montira',        pass:'1234',    name:'Montira Pubutta',                 emp:'10061',   email:'operation_1@nteq-polymer.com',    position:'Manager',                      role:'user',  dept:'NTEQ-Operation&Marketing',     active:true },
-  { id:'u_k10050', username:'hathaichanok',   pass:'1234',    name:'Hathaichanok Tonkaew',            emp:'10050',   email:'hata0912@nteq-polymer.com',       position:'Assistant Manager',            role:'user',    dept:'NTEQ-Production',              active:true },
-  { id:'u_k10029', username:'piyanuch',       pass:'1234',    name:'Piyanuch Khotaraviang',           emp:'10029',   email:'quality@nteq-polymer.com',        position:'Manager',                      role:'user',  dept:'NTEQ-Quality Control',         active:true },
-  { id:'u_k10026', username:'poranut',        pass:'1234',    name:'Poranut Janrustana',              emp:'10026',   email:'project@nteq-polymer.com',        position:'Manager',                      role:'user',  dept:'NTEQ-Maintenance',             active:true },
-  { id:'u_k10003', username:'penpisut',       pass:'1234',    name:'Penpisut Jaro',                   emp:'10003',   email:'account_1@nteq-polymer.com',      position:'Manager',                      role:'user',  dept:'NTEQ-Accounting&Finance',      active:true },
-  { id:'u_k10002', username:'somnuek',        pass:'1234',    name:'Somnuek Sae-ngow',                emp:'10002',   email:'somnuek@nteq-polymer.com',        position:'Senior Manager',               role:'user',  dept:'NTEQ-Management',              active:true },
-  { id:'u_k0610548',username:'kittiphon',     pass:'1234',    name:'Kittiphon Phonphankwan',          emp:'0610548', email:'kittiphon.p@nteq-polymer.com',    position:'',                             role:'user',    dept:'NTEQ-Environment',             active:true },
-  { id:'u_k0610051',username:'srivikorn',     pass:'1234',    name:'Srivikorn Sophakun',              emp:'0610051', email:'srivikorn.s@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-NY',                       active:true },
-  { id:'u_k0510069',username:'srisuda',       pass:'1234',    name:'Srisuda Bunkamned',               emp:'0510069', email:'srisuda.b@sv-polymer.com',        position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
-  { id:'u_k0510068',username:'phitsini',      pass:'1234',    name:'Phitsini Yonplio',                emp:'0510068', email:'phitsini.y@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
-  { id:'u_k0510050',username:'supaporn_n',    pass:'1234',    name:'Supaporn Nantawong',              emp:'0510050', email:'supaporn.n@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
-  { id:'u_k0510049',username:'anongnart',     pass:'1234',    name:'Anongnart Khotsa',                emp:'0510049', email:'anongnart.k@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
-  { id:'u_k0510042',username:'anekpong',      pass:'1234',    name:'Anekpong Sonyeam',                emp:'0510042', email:'anekpong.s@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
-  { id:'u_k0410902',username:'yutthana',      pass:'1234',    name:'Yutthana Saengkla',               emp:'0410902', email:'yutthana.s@nteq-polymer.com',     position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
-  { id:'u_k0410901',username:'permsak',       pass:'1234',    name:'Permsak Aggalab',                 emp:'0410901', email:'permsak.a@nteq-polymer.com',      position:'BD Technical Asst. Manager',   role:'user',    dept:'NTEQ-Technical',               active:true },
-  { id:'u_k0410865',username:'sunthon',       pass:'1234',    name:'Sunthon Sitthikankaew',           emp:'0410865', email:'sunthon.s@nteq-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
-  { id:'u_k0410864',username:'nutchinee',     pass:'1234',    name:'Nutchinee Sabai',                 emp:'0410864', email:'nutchinee.s@nteq-polymer.com',    position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Wet Line',                active:true },
-  { id:'u_k0410072',username:'aphichat',      pass:'1234',    name:'Aphichat Roddeepeng',             emp:'0410072', email:'aphichat.r@sv-polymer.com',       position:'Supervisor',                   role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0410067',username:'chaisak',       pass:'1234',    name:'Chaisak Jaemdara',                emp:'0410067', email:'svp.technical01@sv-polymer.com',  position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k10234', username:'assakorn',       pass:'1234',    name:'Assakorn Chansrimuang',           emp:'10234',   email:'',       position:'Supervisor II',                role:'user',    dept:'NTEQ-Wet Line',                active:true },
+  { id:'u_k10226', username:'saksakul',       pass:'1234',    name:'Saksakul Boonsankaew',            emp:'10226',   email:'',      position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10225', username:'akhaphon',       pass:'1234',    name:'Akhaphon Butte',                  emp:'10225',   email:'',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-DRY',                     active:true },
+  { id:'u_k10213', username:'rattanawadee',   pass:'1234',    name:'Rattanawadee Jansong',            emp:'10213',   email:'',       position:'Assignments Manager',          role:'user',  dept:'NTEQ-BD',                      active:true },
+  { id:'u_k10202', username:'yurada',         pass:'1234',    name:'Yurada Phanurak',                 emp:'10202',   email:'',       position:'Manager',                      role:'user',  dept:'NTEQ-BD',                      active:true },
+  { id:'u_k10176', username:'supaporn_b',     pass:'1234',    name:'Supaporn Buakaew',                emp:'10176',   email:'',       position:'Senior Supervisor Il',         role:'user',    dept:'NTEQ-Environment',             active:true },
+  { id:'u_k10159', username:'nobporn',        pass:'1234',    name:'Nobporn Chuklin',                 emp:'10159',   email:'',       position:'Assistant Manager',            role:'user',    dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10157', username:'phairot',        pass:'1234',    name:'Phairot Thongdee',                emp:'10157',   email:'',        position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10151', username:'ranee',          pass:'1234',    name:'Ranee Tumnasuk',                  emp:'10151',   email:'',      position:'Assistant Manager',            role:'user',    dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10149', username:'waranya',        pass:'1234',    name:'Waranya Srikaew',                 emp:'10149',   email:'',        position:'Senior Supervisor I',          role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10130', username:'chairat',        pass:'1234',    name:'Chairat Jaitrong',                emp:'10130',   email:'',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10119', username:'pattra',         pass:'1234',    name:'Pattra Saphoo',                   emp:'10119',   email:'',         position:'Assistant Manager',            role:'user',    dept:'NTEQ-R&D',                     active:true },
+  { id:'u_k10114', username:'supparerk',      pass:'1234',    name:'Supparerk Kwanthaisong',          emp:'10114',   email:'',    position:'Assistant Manager',            role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k10109', username:'anongluk',       pass:'1234',    name:'Anongluk Rattanachaisiriwat',     emp:'10109',   email:'',         position:'Manager',                      role:'user',  dept:'NTEQ-Safety',                  active:true },
+  { id:'u_k10103', username:'apidech',        pass:'1234',    name:'Apidech Thongsom',                emp:'10103',   email:'',       position:'Senior Supervisor II',         role:'user',    dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10098', username:'ratchapol',      pass:'1234',    name:'Ratchapol Siriboon',              emp:'10098',   email:'',           position:'Manager',                      role:'user',  dept:'NTEQ-Sustainability',          active:true },
+  { id:'u_k10090', username:'parichat_sr',    pass:'1234',    name:'Parichat Sriprasert',             emp:'10090',   email:'',       position:'Supervisor II',                role:'user',    dept:'NTEQ-Purchase&Raw material',   active:true },
+  { id:'u_k10061', username:'montira',        pass:'1234',    name:'Montira Pubutta',                 emp:'10061',   email:'',    position:'Manager',                      role:'user',  dept:'NTEQ-Operation&Marketing',     active:true },
+  { id:'u_k10050', username:'hathaichanok',   pass:'1234',    name:'Hathaichanok Tonkaew',            emp:'10050',   email:'',       position:'Assistant Manager',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k10029', username:'piyanuch',       pass:'1234',    name:'Piyanuch Khotaraviang',           emp:'10029',   email:'',        position:'Manager',                      role:'user',  dept:'NTEQ-Quality Control',         active:true },
+  { id:'u_k10026', username:'poranut',        pass:'1234',    name:'Poranut Janrustana',              emp:'10026',   email:'',        position:'Manager',                      role:'user',  dept:'NTEQ-Maintenance',             active:true },
+  { id:'u_k10003', username:'penpisut',       pass:'1234',    name:'Penpisut Jaro',                   emp:'10003',   email:'',      position:'Manager',                      role:'user',  dept:'NTEQ-Accounting&Finance',      active:true },
+  { id:'u_k10002', username:'somnuek',        pass:'1234',    name:'Somnuek Sae-ngow',                emp:'10002',   email:'',        position:'Senior Manager',               role:'user',  dept:'NTEQ-Management',              active:true },
+  { id:'u_k0610548',username:'kittiphon',     pass:'1234',    name:'Kittiphon Phonphankwan',          emp:'0610548', email:'',    position:'',                             role:'user',    dept:'NTEQ-Environment',             active:true },
+  { id:'u_k0610051',username:'srivikorn',     pass:'1234',    name:'Srivikorn Sophakun',              emp:'0610051', email:'',      position:'Junior Supervisor',            role:'user',    dept:'SVP-NY',                       active:true },
+  { id:'u_k0510069',username:'srisuda',       pass:'1234',    name:'Srisuda Bunkamned',               emp:'0510069', email:'',        position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510068',username:'phitsini',      pass:'1234',    name:'Phitsini Yonplio',                emp:'0510068', email:'',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510050',username:'supaporn_n',    pass:'1234',    name:'Supaporn Nantawong',              emp:'0510050', email:'',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510049',username:'anongnart',     pass:'1234',    name:'Anongnart Khotsa',                emp:'0510049', email:'',      position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0510042',username:'anekpong',      pass:'1234',    name:'Anekpong Sonyeam',                emp:'0510042', email:'',       position:'Junior Supervisor',            role:'user',    dept:'SVP-QC',                       active:true },
+  { id:'u_k0410902',username:'yutthana',      pass:'1234',    name:'Yutthana Saengkla',               emp:'0410902', email:'',     position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k0410901',username:'permsak',       pass:'1234',    name:'Permsak Aggalab',                 emp:'0410901', email:'',      position:'BD Technical Asst. Manager',   role:'user',    dept:'NTEQ-Technical',               active:true },
+  { id:'u_k0410865',username:'sunthon',       pass:'1234',    name:'Sunthon Sitthikankaew',           emp:'0410865', email:'',      position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Production',              active:true },
+  { id:'u_k0410864',username:'nutchinee',     pass:'1234',    name:'Nutchinee Sabai',                 emp:'0410864', email:'',    position:'Junior Supervisor',            role:'user',    dept:'NTEQ-Wet Line',                active:true },
+  { id:'u_k0410072',username:'aphichat',      pass:'1234',    name:'Aphichat Roddeepeng',             emp:'0410072', email:'',       position:'Supervisor',                   role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410067',username:'chaisak',       pass:'1234',    name:'Chaisak Jaemdara',                emp:'0410067', email:'',  position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
   { id:'u_k0410066',username:'peeraphat',     pass:'1234',    name:'Peeraphat Suebpanya',             emp:'0410066', email:'',                                position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0410065',username:'oraya',         pass:'1234',    name:'Oraya Nim-on',                    emp:'0410065', email:'svp.production03@sv-polymer.com', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0410057',username:'theerawut',     pass:'1234',    name:'Theerawut Auyuen',                emp:'0410057', email:'svp.production01@sv-polymer.com', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0410053',username:'thanakorn_p',   pass:'1234',    name:'Thanakorn Pholthip',              emp:'0410053', email:'thanakorn.p@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0410047',username:'worramet',      pass:'1234',    name:'Worramet Pongthao',               emp:'0410047', email:'svp.production02@sv-polymer.com', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0410044',username:'pittayut',      pass:'1234',    name:'Pittayut Sirijaroen',             emp:'0410044', email:'pittayut.s@sv-polymer.com',       position:'Supervisor I',                 role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0410034',username:'nattawut',      pass:'1234',    name:'Nattawut Inmankong',              emp:'0410034', email:'svp.smaintance@sv-polymer.com',   position:'Senior Supervisor I',          role:'user',    dept:'SVP-Production',               active:true },
-  { id:'u_k0310061',username:'praphatsorn',   pass:'1234',    name:'Praphatsorn Nilkhamnerd',         emp:'0310061', email:'praphatsorn.n@sv-polymer.com',    position:'Junior Supervisor',            role:'user',    dept:'SVP-HR',                       active:true },
-  { id:'u_k0310052',username:'anantaya',      pass:'1234',    name:'Anantaya Baokeaw',                emp:'0310052', email:'anantaya.b@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
-  { id:'u_k0110060',username:'benjamas',      pass:'1234',    name:'Benjamas Loedsakrai',             emp:'0110060', email:'benjamas.l@sv-polymer.com',       position:'Senior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
-  { id:'u_k0110059',username:'nitchanan',     pass:'1234',    name:'Nitchanan Muangjan',              emp:'0110059', email:'nitchanan.m@sv-polymer.com',      position:'Junior Supervisor',            role:'user',    dept:'SVP-RM',                       active:true },
-  { id:'u_k0110056',username:'kannaphat',     pass:'1234',    name:'Kannaphat Thiamsanit',            emp:'0110056', email:'kannaphat.t@sv-polymer.com',      position:'Manager',                      role:'user',  dept:'SVP-Account',                  active:true },
-  { id:'u_k0110048',username:'patcharaporn',  pass:'1234',    name:'Patcharaporn Phasom',             emp:'0110048', email:'patcharaporn.p@sv-polymer.com',   position:'Supervisor I',                 role:'user',    dept:'SVP-Purchase',                 active:true },
-  { id:'u_k0110041',username:'jaruwan',       pass:'1234',    name:'Jaruwan Piajan',                  emp:'0110041', email:'jaruwan.p@sv-polymer.com',        position:'Supervisor II',                role:'user',    dept:'SVP-RM',                       active:true },
-  { id:'u_k0110040',username:'titaporn',      pass:'1234',    name:'Titaporn Maneesarn',              emp:'0110040', email:'marketing_svp01@sv-polymer.com',  position:'Assistant Manager',            role:'user',    dept:'SVP-Shipping',                 active:true },
-  { id:'u_k0110037',username:'naruwan',       pass:'1234',    name:'Naruwan Eiamsongkarm',            emp:'0110037', email:'naruwan.e@sv-polymer.com',        position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
-  { id:'u_k0110032',username:'chayanit',      pass:'1234',    name:'Chayanit Oiamjaroenwat',          emp:'0110032', email:'chayanit.o@sv-polymer.com',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Purchase',                 active:true },
-  { id:'u_kyuwadee', username:'yuwadee',      pass:'1234',    name:'Yuwadee Wongwaengnoi',            emp:'',        email:'yuwadee.w@sv-polymer.com',        position:'Manager',                      role:'user',  dept:'SVP-Account',                  active:true },
+  { id:'u_k0410065',username:'oraya',         pass:'1234',    name:'Oraya Nim-on',                    emp:'0410065', email:'', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410057',username:'theerawut',     pass:'1234',    name:'Theerawut Auyuen',                emp:'0410057', email:'', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410053',username:'thanakorn_p',   pass:'1234',    name:'Thanakorn Pholthip',              emp:'0410053', email:'',      position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410047',username:'worramet',      pass:'1234',    name:'Worramet Pongthao',               emp:'0410047', email:'', position:'Junior Supervisor',            role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410044',username:'pittayut',      pass:'1234',    name:'Pittayut Sirijaroen',             emp:'0410044', email:'',       position:'Supervisor I',                 role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0410034',username:'nattawut',      pass:'1234',    name:'Nattawut Inmankong',              emp:'0410034', email:'',   position:'Senior Supervisor I',          role:'user',    dept:'SVP-Production',               active:true },
+  { id:'u_k0310061',username:'praphatsorn',   pass:'1234',    name:'Praphatsorn Nilkhamnerd',         emp:'0310061', email:'',    position:'Junior Supervisor',            role:'user',    dept:'SVP-HR',                       active:true },
+  { id:'u_k0310052',username:'anantaya',      pass:'1234',    name:'Anantaya Baokeaw',                emp:'0310052', email:'',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k0110060',username:'benjamas',      pass:'1234',    name:'Benjamas Loedsakrai',             emp:'0110060', email:'',       position:'Senior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k0110059',username:'nitchanan',     pass:'1234',    name:'Nitchanan Muangjan',              emp:'0110059', email:'',      position:'Junior Supervisor',            role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k0110056',username:'kannaphat',     pass:'1234',    name:'Kannaphat Thiamsanit',            emp:'0110056', email:'',      position:'Manager',                      role:'user',  dept:'SVP-Account',                  active:true },
+  { id:'u_k0110048',username:'patcharaporn',  pass:'1234',    name:'Patcharaporn Phasom',             emp:'0110048', email:'',   position:'Supervisor I',                 role:'user',    dept:'SVP-Purchase',                 active:true },
+  { id:'u_k0110041',username:'jaruwan',       pass:'1234',    name:'Jaruwan Piajan',                  emp:'0110041', email:'',        position:'Supervisor II',                role:'user',    dept:'SVP-RM',                       active:true },
+  { id:'u_k0110040',username:'titaporn',      pass:'1234',    name:'Titaporn Maneesarn',              emp:'0110040', email:'',  position:'Assistant Manager',            role:'user',    dept:'SVP-Shipping',                 active:true },
+  { id:'u_k0110037',username:'naruwan',       pass:'1234',    name:'Naruwan Eiamsongkarm',            emp:'0110037', email:'',        position:'Junior Supervisor',            role:'user',    dept:'SVP-Account',                  active:true },
+  { id:'u_k0110032',username:'chayanit',      pass:'1234',    name:'Chayanit Oiamjaroenwat',          emp:'0110032', email:'',       position:'Junior Supervisor',            role:'user',    dept:'SVP-Purchase',                 active:true },
+  { id:'u_kyuwadee', username:'yuwadee',      pass:'1234',    name:'Yuwadee Wongwaengnoi',            emp:'',        email:'',        position:'Manager',                      role:'user',  dept:'SVP-Account',                  active:true },
   { id:'u_knamfon',  username:'namfon',       pass:'1234',    name:'namfon promjuang',                emp:'',        email:'',                                position:'reader store',                 role:'user',    dept:'NTEQ-HR&ADMIN',                active:true },
 ];
 
@@ -1078,21 +1208,52 @@ function loadActivityReport() {
 // ═══════════════════════════════════════
 //  LOGIN / LOGOUT
 // ═══════════════════════════════════════
-function doLogin() {
+async function doLogin() {
   load();
-  const uname = document.getElementById('l-user').value.trim().toLowerCase();
-  const pass  = document.getElementById('l-pass').value;
-  const err   = document.getElementById('login-err');
-  let u = users.find(x => x.username.toLowerCase() === uname && x.pass === pass && x.active);
+  const uname   = document.getElementById('l-user').value.trim().toLowerCase();
+  const rawPass = document.getElementById('l-pass').value;
+  const err     = document.getElementById('login-err');
+
+  if (!uname || !rawPass) {
+    err.textContent = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน';
+    err.style.display = 'block';
+    setTimeout(() => err.style.display = 'none', 3000);
+    return;
+  }
+
+  srpShowLoading('กำลังตรวจสอบ...');
+
+  // migrate plain-text passwords → hashed (ครั้งเดียวอัตโนมัติ)
+  await _migratePasswords();
+
+  const hashed = await srpHash(rawPass);
+
+  // ค้นหา user: รองรับทั้ง hash ใหม่ และ plain-text เดิม (backward compat)
+  let u = users.find(x =>
+    x.username.toLowerCase() === uname &&
+    (x.pass === hashed || (!x.hashed && x.pass === rawPass)) &&
+    x.active
+  );
+
   if (!u) {
+    // ลอง reload แล้วค้นใหม่
     localStorage.removeItem('srp_users');
     localStorage.removeItem('srp_user_ver');
     load();
-    u = users.find(x => x.username.toLowerCase() === uname && x.pass === pass && x.active);
+    await _migratePasswords();
+    u = users.find(x =>
+      x.username.toLowerCase() === uname &&
+      (x.pass === hashed || (!x.hashed && x.pass === rawPass)) &&
+      x.active
+    );
   }
+
+  srpHideLoading();
+
   if (!u) {
+    err.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
     err.style.display = 'block';
-    setTimeout(() => err.style.display = 'none', 3000);
+    setTimeout(() => { err.style.display = 'none'; }, 3000);
     return;
   }
 
@@ -1111,20 +1272,23 @@ function doLogin() {
   currentUser = u;
   window.currentUser = u;
   logLogin();  // บันทึก login
-  document.getElementById('screen-login').classList.add('hidden');
-  document.getElementById('app-header').style.display = 'flex';
-  document.getElementById('app-layout').style.display = 'flex';
-  var _bg=document.getElementById('bg-hero');
-  if(_bg){_bg.style.opacity='0.80';_bg.style.filter='brightness(100%) saturate(115%)';}
-  var _cv=document.getElementById('it-bg-canvas');
-  if(_cv){_cv.style.opacity='0.08';}
+  _startSessionWatcher(); // เริ่ม session timeout
 
-  // ── Apply role theme ──
-  applyRoleTheme(u.role);
-  applyRoleMenu(u.role);
-
-  if (window.SrpSync) SrpSync.connect();
-  initApp();
+  srpShowLoading('กำลังโหลดระบบ...');
+  setTimeout(() => {
+    srpHideLoading();
+    document.getElementById('screen-login').classList.add('hidden');
+    document.getElementById('app-header').style.display = 'flex';
+    document.getElementById('app-layout').style.display = 'flex';
+    var _bg=document.getElementById('bg-hero');
+    if(_bg){_bg.style.opacity='0.80';_bg.style.filter='brightness(100%) saturate(115%)';}
+    var _cv=document.getElementById('it-bg-canvas');
+    if(_cv){_cv.style.opacity='0.08';}
+    applyRoleTheme(u.role);
+    applyRoleMenu(u.role);
+    if (window.SrpSync) SrpSync.connect();
+    initApp();
+  }, 600);
 }
 
 function applyRoleTheme(role) {
@@ -1215,9 +1379,11 @@ function renderUserHome() {
   }
 }
 
-function doLogout() {
-  if (!confirm('ออกจากระบบ?')) return;
+function doLogout(forced) {
+  if (!forced && !confirm('ออกจากระบบ?')) return;
+  logLogout();
   save();
+  _stopSessionWatcher(); // หยุด session timeout
   currentUser = null;
   window.currentUser = null;
   document.getElementById('screen-login').classList.remove('hidden');
@@ -1827,6 +1993,7 @@ function renderApprove() {
 }
 
 function setStatus(id, status) {
+  if (!srpVerifyRole()) return; // re-validate role ทุกครั้ง
   const p = PERMS[currentUser.role];
   if (currentUser.role !== 'admin') {
     if (status==='approved'&&!p.approve) { toast('ไม่มีสิทธิ์อนุมัติ','err'); return; }
@@ -1937,6 +2104,8 @@ function openEditStock(id) {
   document.getElementById('modal-stock').classList.remove('hidden');
 }
 function saveStock() {
+  if (!srpVerifyRole()) return;
+  if (!PERMS[currentUser.role].stock) { toast('ไม่มีสิทธิ์แก้ไขสต๊อก','err'); return; }
   const id   = document.getElementById('ms-id').value.trim();
   const name = document.getElementById('ms-name').value.trim();
   if (!id||!name) { alert('กรุณากรอกรหัสและชื่อสินค้า'); return; }
@@ -1964,6 +2133,8 @@ function confirmRecv() {
   closeModal('modal-recv'); save(); renderStock(); toast('รับอุปกรณ์ '+s.name+' เข้าคลัง IT +'+qty+' '+s.unit);
 }
 function deleteStock(id) {
+  if (!srpVerifyRole()) return;
+  if (!PERMS[currentUser.role].stock) { toast('ไม่มีสิทธิ์ลบสต๊อก','err'); return; }
   const s = stockData.find(x=>x.id===id); if(!s) return;
   if (!confirm('ลบสินค้า "'+s.name+'" ออกจากสต๊อก?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้')) return;
   stockData = stockData.filter(x=>x.id!==id);
@@ -2051,10 +2222,12 @@ function openEditUser(id) {
   document.getElementById('modal-user').classList.remove('hidden');
 }
 
-function saveUser() {
+async function saveUser() {
+  if (!srpVerifyRole()) return;
+  if (!PERMS[currentUser.role].users) { toast('ไม่มีสิทธิ์จัดการผู้ใช้','err'); return; }
   const name = document.getElementById('mu-name').value.trim();
   const uname= document.getElementById('mu-user').value.trim().toLowerCase().replace(/\s+/g,'');
-  const pass = document.getElementById('mu-pass').value;
+  const rawPass = document.getElementById('mu-pass').value;
   const role = document.getElementById('mu-role') ? document.getElementById('mu-role').value : '';
   const dept = (function(){ var w=document.querySelector('[data-srp-id="mu-dept"]'); return (w&&w._srpGetValue)?w._srpGetValue():(document.getElementById('mu-dept')?document.getElementById('mu-dept').value:''); })();
   const emp  = document.getElementById('mu-emp').value.trim();
@@ -2064,14 +2237,17 @@ function saveUser() {
   errEl.style.display = 'none';
   if (!name)  { errEl.textContent='กรุณากรอกชื่อ-นามสกุล';    errEl.style.display='block'; return; }
   if (!uname) { errEl.textContent='กรุณากรอก Username';         errEl.style.display='block'; return; }
-  if (pass.length < 4) { errEl.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; errEl.style.display='block'; return; }
+  if (rawPass.length < 4) { errEl.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; errEl.style.display='block'; return; }
   // check duplicate username
   const dup = users.find(x => x.username===uname && x.id!==editUserId);
   if (dup) { errEl.textContent='Username นี้ถูกใช้งานแล้ว'; errEl.style.display='block'; return; }
 
+  // hash password
+  const hashedPass = await srpHash(rawPass);
+
   if (editUserId) {
     const u = users.find(x=>x.id===editUserId);
-    Object.assign(u, { name, username:uname, pass, role, dept, emp, email, position });
+    Object.assign(u, { name, username:uname, pass: hashedPass, hashed:true, role, dept, emp, email, position });
     // update live user if editing self
     if (currentUser.id === editUserId) {
       currentUser = u;
@@ -2080,7 +2256,7 @@ function saveUser() {
     }
     toast('อัปเดตข้อมูลผู้ใช้ @'+uname+' แล้ว');
   } else {
-    users.push({ id:'u'+Date.now(), username:uname, pass, name, emp, email, position, role, dept, active:true });
+    users.push({ id:'u'+Date.now(), username:uname, pass: hashedPass, hashed:true, name, emp, email, position, role, dept, active:true });
     toast('เพิ่มผู้ใช้ @'+uname+' สำเร็จ');
   }
   closeModal('modal-user'); save(); renderUsers();
@@ -2097,6 +2273,8 @@ function toggleUser(id) {
   toast((u.active?'เปิด':'ปิด')+' บัญชี @'+u.username+' แล้ว', u.active?'ok':'warn');
 }
 function deleteUser(id) {
+  if (!srpVerifyRole()) return;
+  if (!PERMS[currentUser.role].users) { toast('ไม่มีสิทธิ์ลบผู้ใช้','err'); return; }
   const u = users.find(x=>x.id===id); if(!u) return;
   if (u.id === currentUser.id) { toast('ไม่สามารถลบบัญชีตัวเองได้','err'); return; }
   if (!confirm('ลบผู้ใช้ "'+u.name+'" (@'+u.username+')?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้')) return;
@@ -4216,18 +4394,25 @@ nav {
   border-right: none;
   padding: 0 1rem;
   position:sticky; top:58px;
-  height:auto; overflow-y:visible; overflow-x:auto;
+  height:auto; overflow:visible;
   display:flex; flex-direction:row; align-items:center; flex-wrap:nowrap;
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  z-index: 50;
+  z-index: 200;
   gap: 2px;
 }
 nav::-webkit-scrollbar { width:3px }
 nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.10); border-radius:99px }
 
 .nav-sec { padding:0; margin-bottom:0; display:flex; align-items:center; gap:2px; flex-shrink:0; }
+.nav-scroll-inner {
+  display:flex; align-items:center; flex:1; min-width:0;
+  overflow-x:auto; overflow-y:visible;
+  gap:2px;
+}
+.nav-scroll-inner::-webkit-scrollbar { display:none; }
+.nav-scroll-inner { -ms-overflow-style:none; scrollbar-width:none; }
 .nav-lbl {
   display:none;
 }
@@ -6131,7 +6316,7 @@ function importDevUsers(input){
 <div id="mob-overlay" onclick="toggleMobileNav()"></div>
 <!-- ═══════════════ LAYOUT ═══════════════ -->
 <div class="layout" id="app-layout" style="display:none">
-<nav><div class="nav-sec">
+<nav><div class="nav-scroll-inner"><div class="nav-sec">
     <span class="nav-lbl">เมนูหลัก</span>
     <button class="nav-item active" id="nav-dashboard" onclick="goTo('dashboard',this)">
       <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
@@ -6173,9 +6358,11 @@ function importDevUsers(input){
       <svg viewBox="0 0 20 20" fill="none"><circle cx="8" cy="7" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M2 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M14 9l2 2 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       จัดการผู้ใช้
     </button>
+    </div><!-- /nav-sec -->
+  </div><!-- /nav-scroll-inner -->
     <!-- Settings Mega Dropdown -->
     <div class="nav-settings-wrap" id="nav-settings-wrap" style="position:relative;flex-shrink:0;">
-      <button class="nav-item nav-settings-btn" id="nav-settings-trigger" onclick="toggleSettingsMenu(event)" style="gap:7px;">
+      <button class="nav-item nav-settings-btn" id="nav-settings-trigger" onclick="toggleSettingsMenu(event)" style="gap:7px; cursor:pointer !important; z-index:9999 !important;">
         <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         ตั้งค่า
         <svg id="settings-arrow" width="11" height="11" viewBox="0 0 20 20" fill="none" style="transition:transform .2s;opacity:.6"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -6184,32 +6371,31 @@ function importDevUsers(input){
       <div id="settings-submenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;min-width:220px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.14);z-index:9999;overflow:hidden;padding:6px;">
         <!-- Section label -->
         <div style="padding:6px 12px 4px;font-size:10.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">การตั้งค่า</div>
-        <button id="nav-settings" onclick="goTo('settings',document.getElementById('nav-settings'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
+        <button id="nav-settings" onclick="event.stopPropagation();goTo('settings',document.getElementById('nav-settings'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
           <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           ตั้งค่าระบบ
         </button>
-        <button id="nav-advanced-settings" onclick="goTo('advanced-settings',document.getElementById('nav-advanced-settings'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
+        <button id="nav-advanced-settings" onclick="event.stopPropagation();goTo('advanced-settings',document.getElementById('nav-advanced-settings'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
           <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2m0 12v2M2 10h2m12 0h2m-3.17-4.83 1.42-1.42M5.75 14.25l-1.42 1.42M16.83 14.83l-1.42-1.42M4.59 5.17l1.42 1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="10" r="1.2" fill="currentColor"/></svg>
           ตั้งค่าเพิ่มเติม
         </button>
         <!-- Divider -->
         <div style="height:1px;background:#f1f5f9;margin:4px 8px;"></div>
         <div style="padding:6px 12px 4px;font-size:10.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">ข้อมูล</div>
-        <button id="nav-backup" onclick="goTo('backup',document.getElementById('nav-backup'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
+        <button id="nav-backup" onclick="event.stopPropagation();goTo('backup',document.getElementById('nav-backup'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
           <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M10 3a7 7 0 0 1 7 7v1H4v-1a6 6 0 0 1 6-7z" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="11" width="14" height="6" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M7 14h2M11 14h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           สำรอง / กู้คืนข้อมูล
         </button>
-        <button id="nav-activity" onclick="goTo('activity',document.getElementById('nav-activity'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
+        <button id="nav-activity" onclick="event.stopPropagation();goTo('activity',document.getElementById('nav-activity'));closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
           <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M4 3h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 7h8M6 10h8M6 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           Activity Report
         </button>
-        <button id="nav-export" onclick="exportExcel();closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
+        <button id="nav-export" onclick="event.stopPropagation();exportExcel();closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
           <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M10 3v10M6 9l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           Export Excel
         </button>
       </div>
     </div>
-  </div>
 </nav>
 
 <main>
@@ -6232,8 +6418,8 @@ function importDevUsers(input){
        onmouseover="this.style.boxShadow='0 4px 20px rgba(34,197,94,.18)';this.style.transform='translateY(-2px)'"
        onmouseout="this.style.boxShadow='';this.style.transform=''"
        onclick="goTo('repair',document.getElementById('nav-repair'))">
-    <div style="margin-bottom:.75rem;width:80px;height:80px;border-radius:14px;overflow:hidden;margin-left:auto;margin-right:auto;border:2px solid #e2e8f0;">
-      <img src="https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=160&h=160&fit=crop" alt="IT Repair" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='<span style=\'font-size:3rem\'></span>'">
+    <div style="margin-bottom:.75rem;width:80px;height:80px;border-radius:14px;overflow:hidden;margin-left:auto;margin-right:auto;background:linear-gradient(135deg,#dcfce7,#bbf7d0);display:flex;align-items:center;justify-content:center;border:2px solid #86efac;">
+      <svg viewBox="0 0 48 48" fill="none" width="44" height="44"><rect x="8" y="30" width="32" height="6" rx="3" fill="#16a34a" opacity=".2"/><path d="M30 10l8 8-18 18-8-2 2-8 16-16z" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M26 14l8 8" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/><circle cx="12" cy="36" r="2" fill="#16a34a" opacity=".5"/></svg>
     </div>
     <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:.3rem">แจ้งซ่อม IT</div>
     <div style="font-size:13px;color:var(--text-muted)">แจ้งปัญหาอุปกรณ์ IT เพื่อให้ทีม IT ดำเนินการ</div>
@@ -6245,8 +6431,8 @@ function importDevUsers(input){
        onmouseover="this.style.boxShadow='0 4px 20px rgba(16,185,129,.18)';this.style.transform='translateY(-2px)'"
        onmouseout="this.style.boxShadow='';this.style.transform=''"
        onclick="goTo('request',document.getElementById('nav-request'))">
-    <div style="margin-bottom:.75rem;width:80px;height:80px;border-radius:14px;overflow:hidden;margin-left:auto;margin-right:auto;border:2px solid #e2e8f0;">
-      <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=160&h=160&fit=crop" alt="IT Stock" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='<span style=\'font-size:3rem\'></span>'">
+    <div style="margin-bottom:.75rem;width:80px;height:80px;border-radius:14px;overflow:hidden;margin-left:auto;margin-right:auto;background:linear-gradient(135deg,#dbeafe,#bfdbfe);display:flex;align-items:center;justify-content:center;border:2px solid #93c5fd;">
+      <svg viewBox="0 0 48 48" fill="none" width="44" height="44"><rect x="10" y="14" width="28" height="22" rx="3" stroke="#2563eb" stroke-width="2.5"/><path d="M16 14v-2a8 8 0 0 1 16 0v2" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/><path d="M18 26h12M18 31h8" stroke="#2563eb" stroke-width="2" stroke-linecap="round" opacity=".6"/><circle cx="24" cy="22" r="2.5" fill="#2563eb" opacity=".4"/></svg>
     </div>
     <div style="font-size:1.1rem;font-weight:700;color:var(--accent);margin-bottom:.3rem">เบิกสต็อก IT</div>
     <div style="font-size:13px;color:var(--text-muted)">ส่งคำขอเบิกอุปกรณ์สำนักงานและ IT</div>
@@ -9653,8 +9839,8 @@ function closeSettingsMenu() {
   if (arrow) arrow.style.transform = '';
   if (trigger) { trigger.style.background = ''; trigger.style.color = ''; }
 }
-// Close settings menu on outside click
-document.addEventListener('click', function(e) {
+// Close settings menu on outside click (mousedown ป้องกัน race กับ onclick ของปุ่มใน submenu)
+document.addEventListener('mousedown', function(e) {
   var wrap = document.getElementById('nav-settings-wrap');
   if (wrap && !wrap.contains(e.target)) closeSettingsMenu();
 });
@@ -9674,6 +9860,42 @@ if (typeof _origGoTo === 'function') {
     }
   };
 }
+</script>
+
+<script>
+/* ── Initial page load state ─────────────────────────────────────────────
+   แสดง spinner ขณะโหลดทรัพยากร (scripts/fonts) ครั้งแรก             */
+(function() {
+  // สร้าง overlay ทันทีก่อน DOM พร้อม
+  var ov = document.createElement('div');
+  ov.id  = 'srp-page-init';
+  ov.style.cssText = [
+    'position:fixed','inset:0','z-index:999998',
+    'display:flex','flex-direction:column',
+    'align-items:center','justify-content:center',
+    'background:#030f07',
+    'gap:16px','transition:opacity .4s ease',
+  ].join(';');
+  ov.innerHTML = [
+    '<div style="width:48px;height:48px;border:3px solid rgba(0,232,122,0.15);',
+    'border-top-color:#00e87a;border-radius:50%;',
+    'animation:srpSpin .75s linear infinite"></div>',
+    '<span style="font-size:13px;color:rgba(0,232,122,0.6);',
+    'font-family:\'Sarabun\',sans-serif;letter-spacing:.06em">กำลังโหลดระบบ...</span>',
+  ].join('');
+  document.body.appendChild(ov);
+
+  function hideInit() {
+    ov.style.opacity = '0';
+    setTimeout(function() { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 420);
+  }
+
+  if (document.readyState === 'complete') {
+    setTimeout(hideInit, 300);
+  } else {
+    window.addEventListener('load', function() { setTimeout(hideInit, 300); });
+  }
+})();
 </script>
 </body>
 </html>
