@@ -11861,36 +11861,44 @@ document.getElementById('modal-register').addEventListener('click', function(e){
     <div style="padding:20px 24px;display:flex;flex-direction:column;gap:12px">
       <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
         <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">ชื่อผู้ใช้</span>
-        <span id="mp-username" style="font-size:14px;color:#111827;font-weight:600">—</span>
+        <input id="mp-username" type="text" style="font-size:14px;color:#111827;font-weight:600;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-family:inherit;width:100%">
       </div>
       <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
         <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">ชื่อ-นามสกุล</span>
-        <span id="mp-name" style="font-size:14px;color:#111827">—</span>
+        <input id="mp-name" type="text" style="font-size:14px;color:#111827;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-family:inherit;width:100%">
       </div>
       <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
         <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">แผนก</span>
-        <span id="mp-dept" style="font-size:14px;color:#111827">—</span>
+        <select id="mp-dept" style="font-size:14px;color:#111827;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-family:inherit;width:100%"><option value="">-- เลือกแผนก --</option></select>
       </div>
       <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
         <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">สิทธิ์การใช้งาน</span>
-        <span id="mp-role-label" style="font-size:14px;color:#111827">—</span>
+        <select id="mp-role" style="font-size:14px;color:#111827;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-family:inherit;width:100%">
+          <option value="user">User — ผู้ใช้งาน (สร้างใบเบิก)</option>
+          <option value="admin">Admin — ผู้ดูแลระบบ</option>
+        </select>
       </div>
       <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
         <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">อีเมล</span>
-        <span id="mp-email" style="font-size:14px;color:#111827">—</span>
+        <input id="mp-email" type="email" style="font-size:14px;color:#111827;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-family:inherit;width:100%">
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">สถานะบัญชี</span>
+        <select id="mp-active" style="font-size:13px;font-weight:600;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-family:inherit;width:100%">
+          <option value="1">✓ ใช้งานได้</option>
+          <option value="0">✗ ถูกระงับ</option>
+        </select>
       </div>
       <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0">
-        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">สถานะบัญชี</span>
-        <span id="mp-status" style="font-size:13px;font-weight:600">—</span>
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">รหัสผ่านใหม่</span>
+        <input id="mp-pass" type="password" placeholder="เว้นว่างไว้หากไม่ต้องการเปลี่ยน" style="font-size:14px;color:#111827;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-family:inherit;width:100%">
       </div>
+      <div id="mp-err" style="display:none;font-size:12.5px;color:#ef4444;font-weight:600;padding:4px 0"></div>
     </div>
     <!-- Footer -->
-    <div style="padding:14px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
-      <a href="https://service.co.th/nteq/site/request-password-reset" target="_blank" style="font-size:13px;color:#2563eb;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 4v4l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        เปลี่ยนรหัสผ่าน
-      </a>
-      <button onclick="document.getElementById('modal-my-profile').style.display='none'" style="padding:8px 20px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">ปิด</button>
+    <div style="padding:14px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;align-items:center;gap:8px">
+      <button onclick="document.getElementById('modal-my-profile').style.display='none'" style="padding:8px 20px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">ยกเลิก</button>
+      <button onclick="saveMyProfile()" style="padding:8px 20px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">บันทึก</button>
     </div>
   </div>
 </div>
@@ -11913,26 +11921,77 @@ function openMyProfile() {
   if (rd) rd.textContent = ((window.ROLE_LABELS && window.ROLE_LABELS[u.role]) || u.role || '—') + (u.dept ? ' · ' + u.dept : '');
 
   // Fields
-  var set = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val || '—'; };
-  set('mp-username',   u.username);
-  set('mp-name',       u.name);
-  set('mp-dept',       u.dept);
-  set('mp-role-label', (window.ROLE_LABELS && window.ROLE_LABELS[u.role]) || u.role);
-  set('mp-email',      u.email);
+  var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+  setVal('mp-username', u.username);
+  setVal('mp-name',     u.name);
+  setVal('mp-email',    u.email);
+  setVal('mp-pass',     '');
 
-  // Status badge
-  var st = document.getElementById('mp-status');
-  if (st) {
-    if (u.active !== false) {
-      st.textContent = '✓ ใช้งานได้';
-      st.style.color = '#16a34a';
-    } else {
-      st.textContent = '✗ ถูกระงับ';
-      st.style.color = '#ef4444';
-    }
+  var roleSel = document.getElementById('mp-role');
+  if (roleSel) roleSel.value = u.role || 'user';
+
+  var activeSel = document.getElementById('mp-active');
+  if (activeSel) activeSel.value = (u.active === false ? '0' : '1');
+
+  // Department (srp searchable select)
+  if (typeof srpInitSelect === 'function') {
+    srpInitSelect({ targetId:'mp-dept', placeholder:'-- เลือกแผนก --', options: (typeof buildDeptOptions==='function'?buildDeptOptions(false):[]), allowEmpty:false, onChange:function(){} });
+    var deptWrap = document.querySelector('[data-srp-id="mp-dept"]');
+    if (deptWrap && deptWrap._srpSetValue) deptWrap._srpSetValue(u.dept || '');
+  } else {
+    setVal('mp-dept', u.dept);
   }
 
+  var errEl = document.getElementById('mp-err');
+  if (errEl) errEl.style.display = 'none';
+
   modal.style.display = 'flex';
+}
+
+async function saveMyProfile() {
+  var u = window.currentUser;
+  if (!u) return;
+  var errEl = document.getElementById('mp-err');
+  errEl.style.display = 'none';
+
+  var username = (document.getElementById('mp-username').value || '').trim().toLowerCase().replace(/\s+/g,'');
+  var name     = (document.getElementById('mp-name').value || '').trim();
+  var email    = (document.getElementById('mp-email').value || '').trim();
+  var role     = document.getElementById('mp-role').value;
+  var active   = document.getElementById('mp-active').value === '1';
+  var rawPass  = document.getElementById('mp-pass').value;
+  var dept     = (function(){ var w=document.querySelector('[data-srp-id="mp-dept"]'); return (w&&w._srpGetValue)?w._srpGetValue():(document.getElementById('mp-dept')?document.getElementById('mp-dept').value:''); })();
+
+  if (!username) { errEl.textContent = 'กรุณากรอก Username'; errEl.style.display = 'block'; return; }
+  if (!name)     { errEl.textContent = 'กรุณากรอกชื่อ-นามสกุล'; errEl.style.display = 'block'; return; }
+  if (rawPass && rawPass.length < 4) { errEl.textContent = 'รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; errEl.style.display = 'block'; return; }
+
+  // ตรวจสอบ username ซ้ำ
+  var dup = users.find(function(x){ return x.username === username && x.id !== u.id; });
+  if (dup) { errEl.textContent = 'Username นี้ถูกใช้งานแล้ว'; errEl.style.display = 'block'; return; }
+
+  u.username = username;
+  u.name     = name;
+  u.email    = email;
+  u.role     = role;
+  u.dept     = dept;
+  u.active   = active;
+  if (rawPass) {
+    u.pass   = await srpHash(rawPass);
+    u.hashed = true;
+  }
+
+  // อัปเดต UI header
+  (document.getElementById('u-name')||{}).textContent = u.name;
+  (document.getElementById('u-role')||{}).textContent = (window.ROLE_LABELS && window.ROLE_LABELS[u.role] || u.role) + ' · ' + (u.dept||'');
+  var av = document.getElementById('u-av');
+  if (av) av.textContent = (u.name || u.username || 'U').charAt(0).toUpperCase();
+
+  if (typeof save === 'function') save();
+  if (typeof renderUsers === 'function') { try { renderUsers(); } catch(e){} }
+
+  toast('บันทึกข้อมูลส่วนตัวสำเร็จ');
+  document.getElementById('modal-my-profile').style.display = 'none';
 }
 
 // Close modal on backdrop click
