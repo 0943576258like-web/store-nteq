@@ -104,6 +104,10 @@ function srpShowLoading(msg) {
   ov.style.opacity = '1';
   const msgEl = document.getElementById('srp-loading-msg');
   if (msgEl) msgEl.textContent = msg || 'กำลังโหลด...';
+
+  // SAFETY: ป้องกัน overlay ค้างถาวรถ้า logic ที่เรียกใช้เกิด error ก่อนเรียก srpHideLoading
+  clearTimeout(window._srpLoadingFailsafe);
+  window._srpLoadingFailsafe = setTimeout(srpHideLoading, 8000);
 }
 
 function srpHideLoading() {
@@ -123,17 +127,23 @@ function srpVerifyRole() {
     if (typeof doLogout === 'function') doLogout(true);
     return false;
   }
-  // sync role จาก source of truth
-  if (live.role !== window.currentUser.role) {
-    window.currentUser.role = live.role;
+  // sync ข้อมูลโปรไฟล์ทั้งหมด (ชื่อ, แผนก, ตำแหน่ง, อีเมล ฯลฯ) จาก source of truth
+  // ป้องกันกรณีแก้ไขชื่อจากเครื่องอื่นแล้วเครื่องนี้ไม่อัปเดต
+  let _profileChanged = false;
+  ['name','dept','position','email','emp','role'].forEach(function(k){
+    if (live[k] !== window.currentUser[k]) { window.currentUser[k] = live[k]; _profileChanged = true; }
+  });
+  if (_profileChanged) {
     if (typeof applyRoleTheme === 'function') applyRoleTheme(live.role);
     if (typeof applyRoleMenu  === 'function') applyRoleMenu(live.role);
+    if (typeof updateNavUser  === 'function') updateNavUser();
+    if (typeof renderUserHome === 'function') renderUserHome();
   }
   return true;
 }
 
-// ตรวจสอบทุก 60 วินาทีขณะใช้งาน
-setInterval(() => { if (window.currentUser) srpVerifyRole(); }, 60000);
+// ตรวจสอบทุก 15 วินาทีขณะใช้งาน
+setInterval(() => { if (window.currentUser) srpVerifyRole(); }, 15000);
 </script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
@@ -1209,8 +1219,29 @@ function loadActivityReport() {
 // ═══════════════════════════════════════
 //  LOGIN / LOGOUT
 // ═══════════════════════════════════════
+function _storeIsEmptyLocal(s) {
+  if (!s) return true;
+  return !s.requests && !s.stock && !s.repairs && !s.users;
+}
 async function doLogin() {
   load();
+  // ── ดึงข้อมูลล่าสุดจาก server ก่อน login เสมอ ──────────────────────────
+  // (เผื่อเครื่องนี้ยังไม่เคยเชื่อมต่อ WebSocket เลย เช่น ค้างอยู่หน้า login
+  //  แล้วแอดมินแก้ไขข้อมูลผู้ใช้จากเครื่องอื่น ข้อมูลใน localStorage จะเก่า)
+  try {
+    const r = await fetch('/api/store');
+    const s = await r.json();
+    if (s && !_storeIsEmptyLocal(s) && Array.isArray(s.users) && s.users.length) {
+      users = s.users;
+      window.users = users;
+      localStorage.setItem('srp_users', JSON.stringify(users));
+      if (Array.isArray(s.stock))    { stockData = s.stock;    localStorage.setItem('srp_stock', JSON.stringify(s.stock)); }
+      if (Array.isArray(s.requests)) { requests  = s.requests; localStorage.setItem('srp_requests', JSON.stringify(s.requests)); }
+      if (Array.isArray(s.repairs))  { try { localStorage.setItem('srp_repairs', JSON.stringify(s.repairs)); } catch(e){} }
+      if (Array.isArray(s.devices))  { try { localStorage.setItem('srp_devices', JSON.stringify(s.devices)); } catch(e){} }
+    }
+  } catch (e) { /* ออฟไลน์หรือ server ไม่ตอบ → ใช้ข้อมูลใน localStorage ต่อไป */ }
+
   const uname   = document.getElementById('l-user').value.trim().toLowerCase();
   const rawPass = document.getElementById('l-pass').value;
   const err     = document.getElementById('login-err');
@@ -6723,31 +6754,7 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
 }
 </style>
 
-<style id="login-mobile-fix">
-/* ── ป้องกัน box ล้นจอมือถือ ── */
-.screen {
-  overflow: hidden !important;
-  padding: 16px !important;
-  box-sizing: border-box !important;
-}
-@media (max-width: 520px) {
-  #screen-login > .box,
-  #screen-forgot > .box {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 28px 20px 24px !important;
-    border-radius: 16px !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-  }
-  #screen-login .fld input,
-  #screen-login .fld select,
-  #screen-forgot input[type="email"],
-  #screen-forgot input[type="password"] {
-    font-size: 16px !important;
-  }
-}
-</style>
+
 
 <body>
 
@@ -11383,6 +11390,9 @@ if (typeof _origGoTo === 'function') {
   } else {
     window.addEventListener('load', function() { setTimeout(hideInit, 300); });
   }
+  // SAFETY FALLBACK: ไม่ว่า 'load' จะ fire หรือไม่ ให้ปิด overlay ภายใน 6 วินาที
+  // ป้องกันหน้าจอค้าง/กดอะไรไม่ได้ ถ้ามี resource (CDN ฯลฯ) โหลดช้าหรือพัง
+  setTimeout(hideInit, 6000);
 })();
 </script>
 
