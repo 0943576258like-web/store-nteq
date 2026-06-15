@@ -1,17 +1,17 @@
 {
-  "name": "srp-it-stock",
+  "name": "claude",
   "version": "1.0.0",
-  "description": "SRP IT Stock & Repair System – Real-time sync server",
+  "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev":   "node server.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
-  "engines": {
-    "node": ">=18"
-  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "ws":      "^8.16.0"
+    "express": "^5.2.1",
+    "ws": "^8.21.0"
   }
 }
