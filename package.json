@@ -10,9 +10,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "sqlite3": "5.1.7"
-    "ws": "^8.21.0"
-  }
+ "dependencies": {
+  "express": "^4.19.2",
+  "sqlite3": "5.1.7",
+  "ws": "^8.21.0"
 }
- 
