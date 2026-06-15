@@ -374,6 +374,7 @@ function _updateSyncBadge(online) {
       'backdrop-filter: none;',
       'transition:all .3s ease','cursor:default',
       'pointer-events:none',
+      'display:none !important',
     ].join(';');
     document.body.appendChild(badge);
   }
@@ -4370,6 +4371,130 @@ function exportMonthRepairs(ym) {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function openForgotPasswordModal() {
+  // reset modal to step 1 every time it's opened
+  var s1 = document.getElementById('forgot-step1');
+  var s2 = document.getElementById('forgot-step2');
+  var s3 = document.getElementById('forgot-step3');
+  var e1 = document.getElementById('forgot-err1');
+  var e2 = document.getElementById('forgot-err2');
+  var emailInput = document.getElementById('forgot-email');
+  var np1 = document.getElementById('forgot-newpass');
+  var np2 = document.getElementById('forgot-newpass2');
+  var actionBtn = document.getElementById('forgot-action-btn');
+  var cancelBtn = document.getElementById('forgot-cancel-btn');
+
+  if (s1) s1.classList.remove('hidden');
+  if (s2) s2.classList.add('hidden');
+  if (s3) s3.classList.add('hidden');
+  if (e1) { e1.style.display = 'none'; e1.textContent = ''; }
+  if (e2) { e2.style.display = 'none'; e2.textContent = ''; }
+  if (emailInput) emailInput.value = '';
+  if (np1) np1.value = '';
+  if (np2) np2.value = '';
+  if (actionBtn) { actionBtn.textContent = 'ถัดไป'; actionBtn.style.display = ''; }
+  if (cancelBtn) cancelBtn.style.display = '';
+
+  // เก็บ user ที่ตรงกับอีเมลไว้ใช้ตอนตั้งรหัสผ่านใหม่
+  window._forgotUser = null;
+
+  var m = document.getElementById('modal-forgot');
+  if (m) m.classList.remove('hidden');
+}
+
+async function forgotPasswordNext() {
+  var s1 = document.getElementById('forgot-step1');
+  var s2 = document.getElementById('forgot-step2');
+  var s3 = document.getElementById('forgot-step3');
+  var e1 = document.getElementById('forgot-err1');
+  var e2 = document.getElementById('forgot-err2');
+  var actionBtn = document.getElementById('forgot-action-btn');
+  var cancelBtn = document.getElementById('forgot-cancel-btn');
+
+  // ── STEP 1 → 2: ตรวจสอบอีเมลองค์กร ──
+  if (s1 && !s1.classList.contains('hidden')) {
+    var email = (document.getElementById('forgot-email').value || '').trim().toLowerCase();
+    if (e1) { e1.style.display = 'none'; e1.textContent = ''; }
+
+    if (!email) {
+      if (e1) { e1.textContent = 'กรุณากรอกอีเมลองค์กร'; e1.style.display = 'block'; }
+      return;
+    }
+    // ตรวจรูปแบบอีเมลคร่าวๆ
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (e1) { e1.textContent = 'รูปแบบอีเมลไม่ถูกต้อง'; e1.style.display = 'block'; }
+      return;
+    }
+
+    var src = (window.users && window.users.length) ? window.users
+            : (typeof users !== 'undefined' && users.length) ? users
+            : (typeof DEFAULT_USERS !== 'undefined' ? DEFAULT_USERS : []);
+
+    var match = src.find(function(u) {
+      return (u.email || '').trim().toLowerCase() === email;
+    });
+
+    if (!match) {
+      if (e1) { e1.textContent = 'ไม่พบบัญชีผู้ใช้ที่ผูกกับอีเมลนี้ กรุณาติดต่อทีม IT'; e1.style.display = 'block'; }
+      return;
+    }
+
+    window._forgotUser = match;
+    var confirmEl = document.getElementById('forgot-confirmed-email');
+    if (confirmEl) confirmEl.textContent = email;
+
+    s1.classList.add('hidden');
+    if (s2) s2.classList.remove('hidden');
+    if (actionBtn) actionBtn.textContent = 'เปลี่ยนรหัสผ่าน';
+    return;
+  }
+
+  // ── STEP 2 → 3: ตั้งรหัสผ่านใหม่ ──
+  if (s2 && !s2.classList.contains('hidden')) {
+    var p1 = document.getElementById('forgot-newpass').value;
+    var p2 = document.getElementById('forgot-newpass2').value;
+    if (e2) { e2.style.display = 'none'; e2.textContent = ''; }
+
+    if (p1.length < 4) {
+      if (e2) { e2.textContent = 'รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; e2.style.display = 'block'; }
+      return;
+    }
+    if (p1 !== p2) {
+      if (e2) { e2.textContent = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน'; e2.style.display = 'block'; }
+      return;
+    }
+
+    var u = window._forgotUser;
+    if (!u) {
+      if (e2) { e2.textContent = 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'; e2.style.display = 'block'; }
+      return;
+    }
+
+    var hashedPass = await srpHash(p1);
+    u.pass   = hashedPass;
+    u.hashed = true;
+
+    // sync เข้า users/window.users และบันทึก
+    if (typeof users !== 'undefined') {
+      var idx = users.findIndex(function(x){ return x.id === u.id; });
+      if (idx >= 0) users[idx] = u; else users.push(u);
+      window.users = users;
+      try {
+        if (typeof save === 'function') save();
+        else localStorage.setItem('srp_users', JSON.stringify(users));
+      } catch(e) {}
+    } else {
+      try { localStorage.setItem('srp_users', JSON.stringify(window.users || [])); } catch(e) {}
+    }
+
+    s2.classList.add('hidden');
+    if (s3) s3.classList.remove('hidden');
+    if (actionBtn) actionBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.textContent = 'ปิด';
+    return;
+  }
+}
 setInterval(() => { if(currentUser) save(); }, 120000);
 
 
@@ -6505,6 +6630,66 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
 .srp-dropdown { background: #ffffff !important; }
 .srp-option { color: #2d3a4a !important; }
 .srp-option:hover { background: #eef4ff !important; }
+
+/* ── screen-forgot: inherit login styles ── */
+#screen-forgot { background: #f8fafc; }
+#screen-forgot > .box {
+  flex-shrink: 0 !important;
+  background: rgba(255,255,255,0.97) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25) !important;
+  padding: 44px 40px 36px !important;
+  width: 420px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  border: 1px solid rgba(255,255,255,0.6) !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+#screen-forgot .box-logo { display:flex !important; flex-direction:column !important; align-items:center !important; margin-bottom:20px !important; }
+#screen-forgot .box-logo img { max-height:80px !important; max-width:260px !important; object-fit:contain !important; }
+#screen-forgot .box-sub { font-size:17px !important; font-weight:700 !important; color:#1e293b !important; text-align:center !important; margin-top:8px !important; }
+#screen-forgot .fld { margin-bottom:14px !important; }
+#screen-forgot .fld label { color:#374151 !important; font-size:13px !important; font-weight:600 !important; letter-spacing:.04em !important; text-transform:uppercase !important; margin-bottom:6px !important; display:block !important; }
+#screen-forgot .fld input,
+#screen-forgot input[type="email"],
+#screen-forgot input[type="password"] {
+  width:100% !important; padding:12px 16px !important; border-radius:12px !important;
+  border:1.5px solid #e2e8f0 !important; background:#f0f7ff !important;
+  color:#1e293b !important; font-size:15px !important;
+  font-family:"Sarabun",sans-serif !important; box-sizing:border-box !important; outline:none !important;
+}
+#screen-forgot input:focus { border-color:#00b85e !important; background:#f0fff8 !important; box-shadow:0 0 0 3px rgba(0,184,94,.12) !important; }
+#screen-forgot input::placeholder { color:#94a3b8 !important; }
+#screen-forgot .big-btn {
+  width:100% !important; padding:14px !important; border-radius:14px !important;
+  background:linear-gradient(135deg,#00c460,#00e87a) !important; color:#032a10 !important;
+  font-size:14px !important; font-weight:700 !important; font-family:"Sarabun",sans-serif !important;
+  border:none !important; cursor:pointer !important;
+  box-shadow:0 4px 20px rgba(0,232,122,.40) !important; margin-top:8px !important;
+}
+#screen-forgot .big-btn:hover { background:linear-gradient(135deg,#00a050,#00d870) !important; }
+#screen-forgot a { color:#00b85e !important; }
+#fp-err1, #fp-err2 { background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:8px 12px; }
+#fp-confirmed-email { color:#1e293b; }
+
+/* ── Mobile responsive (max 480px) ── */
+@media (max-width: 480px) {
+  #screen-login > .box,
+  #screen-forgot > .box {
+    width: calc(100vw - 32px) !important;
+    max-width: 420px !important;
+    padding: 28px 20px 24px !important;
+    border-radius: 16px !important;
+    margin: 0 16px !important;
+  }
+  #screen-login .fld input,
+  #screen-forgot input[type="email"],
+  #screen-forgot input[type="password"] {
+    font-size: 16px !important; /* ป้องกัน iOS zoom */
+  }
+}
 </style>
 <style id="login-input-color-fix">
 /* ===== Fix: input text visible on white login card ===== */
@@ -6594,7 +6779,145 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
     <div class="fld"><label>รหัสผ่าน</label><input id="l-pass" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="big-btn" id="login-main-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
     <div id="login-register-wrap" style="text-align:center;margin-top:.5rem;display:none">
-      <a href="#" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="return false;">ลงทะเบียนเข้าใช้งานระบบ</a>
+      <a href="#" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="openRegisterModal();return false;">ลงทะเบียนเข้าใช้งานระบบ</a>
+    </div>
+    <div style="text-align:center;margin-top:.5rem">
+      <a href="javascript:void(0)" style="font-size:13px;color:var(--accent);text-decoration:none;cursor:pointer" onclick="showForgotBox()">ลืมรหัสผ่าน?</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ FORGOT PASSWORD BOX ═══════════════ -->
+<div id="screen-forgot" class="screen" style="display:none">
+  <div class="box" style="position:relative;z-index:1">
+    <div class="box-logo">
+      <div style="display:flex;justify-content:center;margin-bottom:10px">
+        <img src="https://cdn.phototourl.com/free/2026-06-11-e7bf5d75-33ed-4cdc-97b6-40c63294d481.png">
+      </div>
+      <div class="box-sub">รีเซ็ตรหัสผ่าน</div>
+    </div>
+
+    <!-- Step 1: อีเมล -->
+    <div id="fp-step1">
+      <div class="fld">
+        <label>อีเมลองค์กร</label>
+        <input type="email" id="fp-email" placeholder="name@company.com" autocomplete="email" onkeydown="if(event.key==='Enter') fpStep1Next()">
+      </div>
+      <div id="fp-err1" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
+      <button class="big-btn" onclick="fpStep1Next()">ถัดไป</button>
+      <div style="text-align:center;margin-top:.75rem">
+        <a href="javascript:void(0)" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="hideForgotBox()">← กลับเข้าสู่ระบบ</a>
+      </div>
+    </div>
+
+    <!-- Step 2: ตั้งรหัสผ่านใหม่ -->
+    <div id="fp-step2" style="display:none">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem">อีเมล: <strong id="fp-confirmed-email"></strong></p>
+      <div class="fld">
+        <label>รหัสผ่านใหม่</label>
+        <input type="password" id="fp-newpass" placeholder="อย่างน้อย 4 ตัวอักษร" autocomplete="new-password">
+      </div>
+      <div class="fld">
+        <label>ยืนยันรหัสผ่านใหม่</label>
+        <input type="password" id="fp-newpass2" placeholder="กรอกรหัสผ่านอีกครั้ง" autocomplete="new-password" onkeydown="if(event.key==='Enter') fpStep2Next()">
+      </div>
+      <div id="fp-err2" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
+      <button class="big-btn" onclick="fpStep2Next()">บันทึกรหัสผ่าน</button>
+      <div style="text-align:center;margin-top:.75rem">
+        <a href="javascript:void(0)" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="fpReset()">← ย้อนกลับ</a>
+      </div>
+    </div>
+
+    <!-- Step 3: สำเร็จ -->
+    <div id="fp-step3" style="display:none;text-align:center">
+      <div style="font-size:48px;margin-bottom:.5rem">✅</div>
+      <div style="font-size:16px;font-weight:700;color:#16a34a;margin-bottom:.5rem">เปลี่ยนรหัสผ่านสำเร็จ</div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem">กลับไปเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย</p>
+      <button class="big-btn" onclick="hideForgotBox()">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showForgotBox() {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-forgot').style.display = '';
+  fpReset();
+}
+function hideForgotBox() {
+  document.getElementById('screen-forgot').style.display = 'none';
+  document.getElementById('screen-login').style.display = '';
+}
+function fpReset() {
+  ['fp-step2','fp-step3'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none';});
+  var s1=document.getElementById('fp-step1'); if(s1)s1.style.display='';
+  ['fp-err1','fp-err2'].forEach(function(id){var e=document.getElementById(id);if(e){e.style.display='none';e.textContent='';}});
+  ['fp-email','fp-newpass','fp-newpass2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  window._fpUser=null;
+}
+function fpStep1Next() {
+  var email=(document.getElementById('fp-email').value||'').trim().toLowerCase();
+  var e1=document.getElementById('fp-err1'); e1.style.display='none'; e1.textContent='';
+  if(!email){e1.textContent='กรุณากรอกอีเมลองค์กร';e1.style.display='block';return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){e1.textContent='รูปแบบอีเมลไม่ถูกต้อง';e1.style.display='block';return;}
+  var src=(window.users&&window.users.length)?window.users:(typeof users!=='undefined'?users:[]);
+  var match=src.find(function(u){return(u.email||'').trim().toLowerCase()===email;});
+  if(!match){e1.textContent='ไม่พบบัญชีที่ผูกกับอีเมลนี้ กรุณาติดต่อทีม IT';e1.style.display='block';return;}
+  window._fpUser=match;
+  document.getElementById('fp-confirmed-email').textContent=email;
+  document.getElementById('fp-step1').style.display='none';
+  document.getElementById('fp-step2').style.display='';
+  document.getElementById('fp-newpass').focus();
+}
+async function fpStep2Next() {
+  var p1=document.getElementById('fp-newpass').value;
+  var p2=document.getElementById('fp-newpass2').value;
+  var e2=document.getElementById('fp-err2'); e2.style.display='none'; e2.textContent='';
+  if(p1.length<4){e2.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร';e2.style.display='block';return;}
+  if(p1!==p2){e2.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน';e2.style.display='block';return;}
+  var u=window._fpUser;
+  if(!u){e2.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่';e2.style.display='block';return;}
+  var hashed=await srpHash(p1); u.pass=hashed; u.hashed=true;
+  var src=typeof users!=='undefined'?users:(window.users||[]);
+  var idx=src.findIndex(function(x){return x.id===u.id;});
+  if(idx>=0)src[idx]=u;else src.push(u);
+  window.users=src;
+  try{if(typeof save==='function')save();else localStorage.setItem('srp_users',JSON.stringify(src));}catch(e){}
+  document.getElementById('fp-step2').style.display='none';
+  document.getElementById('fp-step3').style.display='';
+}
+</script>
+
+<!-- ═══ MODAL: Forgot Password ═══ -->
+<div class="modal-ov hidden" id="modal-forgot">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hd"><h2>ลืมรหัสผ่าน?</h2><button class="modal-x" onclick="closeModal('modal-forgot')">×</button></div>
+
+    <!-- STEP 1: กรอกอีเมลองค์กรเพื่อยืนยันตัวตน -->
+    <div id="forgot-step1" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
+      <p style="margin:0 0 .75rem">กรุณากรอก<strong>อีเมลองค์กร</strong>ของท่านเพื่อยืนยันตัวตนและตั้งรหัสผ่านใหม่</p>
+      <input type="email" id="forgot-email" placeholder="name@nteq-polymer.com" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="email">
+      <div id="forgot-err1" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
+    </div>
+
+    <!-- STEP 2: ตั้งรหัสผ่านใหม่ -->
+    <div id="forgot-step2" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
+      <p style="margin:0 0 .75rem">ยืนยันอีเมลแล้ว: <span id="forgot-confirmed-email" style="font-weight:600;color:#0f172a"></span></p>
+      <p style="margin:0 0 .5rem">กำหนดรหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)</p>
+      <input type="password" id="forgot-newpass" placeholder="รหัสผ่านใหม่" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px" autocomplete="new-password">
+      <input type="password" id="forgot-newpass2" placeholder="ยืนยันรหัสผ่านใหม่" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="new-password">
+      <div id="forgot-err2" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
+    </div>
+
+    <!-- STEP 3: เสร็จสิ้น -->
+    <div id="forgot-step3" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px;text-align:center">
+      <p style="margin:.5rem 0;font-weight:600;color:#16a34a">เปลี่ยนรหัสผ่านสำเร็จ</p>
+      <p style="margin:0">สามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที</p>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1.25rem">
+      <button class="btn" id="forgot-cancel-btn" onclick="closeModal('modal-forgot')">ยกเลิก</button>
+      <button class="btn btn-primary" id="forgot-action-btn" onclick="forgotPasswordNext()">ถัดไป</button>
     </div>
   </div>
 </div>
@@ -7094,6 +7417,10 @@ function importDevUsers(input){
           <div id="pd-role" style="font-size:12px;color:#6b7280;margin-top:2px;">—</div>
         </div>
         <div style="padding:6px;">
+          <button onclick="openMyProfile();closeProfileMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='none'">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M3 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            ข้อมูลส่วนตัว
+          </button>
           <button onclick="doLogout();closeProfileMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#ef4444;text-align:left;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M13 3h4a1 1 0 011 1v12a1 1 0 01-1 1h-4M9 14l4-4-4-4M13 10H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             ออกจากระบบ
@@ -11274,6 +11601,289 @@ if (typeof _origGoTo === 'function') {
     </div>
   </div>
 </div>
+
+<!-- ═══════════ MODAL: ลงทะเบียนเข้าใช้งาน ═══════════ -->
+<div id="modal-register" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;font-family:'Sarabun',sans-serif">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#059669,#10b981);padding:18px 22px;display:flex;align-items:center;gap:12px">
+      <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="#fff" stroke-width="1.8"/><path d="M3 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M15 11v4M13 13h4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#fff">ลงทะเบียนเข้าใช้งานระบบ</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:1px">กรอกข้อมูลเพื่อขอสมัครบัญชี รอ Admin อนุมัติ</div>
+      </div>
+      <button onclick="document.getElementById('modal-register').style.display='none'" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <!-- Form -->
+    <div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px">
+      <div id="reg-err" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:13px;color:#dc2626"></div>
+      <div id="reg-ok" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px;font-size:13px;color:#16a34a;text-align:center;font-weight:600"></div>
+      <div id="reg-form-body">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <label style="font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px">ชื่อผู้ใช้ (Username) <span style="color:#ef4444">*</span></label>
+            <input id="reg-username" type="text" placeholder="กรอก username (ภาษาอังกฤษ, ไม่มีช่องว่าง)"
+              style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;box-sizing:border-box"
+              onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#d1d5db'">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px">ชื่อ-นามสกุล <span style="color:#ef4444">*</span></label>
+            <input id="reg-name" type="text" placeholder="ชื่อ นามสกุล"
+              style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;box-sizing:border-box"
+              onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#d1d5db'">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px">แผนก / ฝ่าย <span style="color:#ef4444">*</span></label>
+            <input id="reg-dept" type="text" placeholder="เช่น NTEQ-IT, NCT-Factory"
+              style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;box-sizing:border-box"
+              onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#d1d5db'">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px">ตำแหน่ง</label>
+            <input id="reg-position" type="text" placeholder="ตำแหน่งงาน"
+              style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;box-sizing:border-box"
+              onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#d1d5db'">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px">รหัสพนักงาน</label>
+            <input id="reg-emp" type="text" placeholder="รหัสพนักงาน (ถ้ามี)"
+              style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;box-sizing:border-box"
+              onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#d1d5db'">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px">รหัสผ่าน <span style="color:#ef4444">*</span></label>
+              <input id="reg-pass" type="password" placeholder="รหัสผ่าน"
+                style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;box-sizing:border-box"
+                onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#d1d5db'">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:4px">ยืนยันรหัสผ่าน <span style="color:#ef4444">*</span></label>
+              <input id="reg-pass2" type="password" placeholder="ยืนยันรหัสผ่าน"
+                style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none;box-sizing:border-box"
+                onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#d1d5db'">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:12px 22px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="document.getElementById('modal-register').style.display='none'" style="padding:8px 18px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">ยกเลิก</button>
+      <button id="reg-submit-btn" onclick="submitRegister()" style="padding:8px 22px;border-radius:8px;border:none;background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;display:flex;align-items:center;gap:6px" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M3 10l4.5 4.5L17 5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ส่งคำขอ
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openRegisterModal() {
+  // reset form
+  ['reg-username','reg-name','reg-dept','reg-position','reg-emp','reg-pass','reg-pass2'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var errEl = document.getElementById('reg-err');
+  var okEl  = document.getElementById('reg-ok');
+  var body  = document.getElementById('reg-form-body');
+  var btn   = document.getElementById('reg-submit-btn');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (okEl)  { okEl.style.display  = 'none'; okEl.textContent  = ''; }
+  if (body)  body.style.display = '';
+  if (btn)   btn.style.display  = '';
+  document.getElementById('modal-register').style.display = 'flex';
+}
+
+async function submitRegister() {
+  var errEl = document.getElementById('reg-err');
+  var okEl  = document.getElementById('reg-ok');
+  var btn   = document.getElementById('reg-submit-btn');
+  var body  = document.getElementById('reg-form-body');
+  function showErr(msg) {
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    if (okEl)  okEl.style.display = 'none';
+  }
+
+  var username = (document.getElementById('reg-username').value || '').trim().toLowerCase();
+  var name     = (document.getElementById('reg-name').value     || '').trim();
+  var dept     = (document.getElementById('reg-dept').value     || '').trim();
+  var position = (document.getElementById('reg-position').value || '').trim();
+  var emp      = (document.getElementById('reg-emp').value      || '').trim();
+  var pass     = document.getElementById('reg-pass').value  || '';
+  var pass2    = document.getElementById('reg-pass2').value || '';
+
+  // Validate
+  if (!username) return showErr('กรุณากรอกชื่อผู้ใช้ (Username)');
+  if (/\s/.test(username)) return showErr('Username ต้องไม่มีช่องว่าง');
+  if (!name) return showErr('กรุณากรอกชื่อ-นามสกุล');
+  if (!dept) return showErr('กรุณากรอกแผนก / ฝ่าย');
+  if (!pass) return showErr('กรุณากรอกรหัสผ่าน');
+  if (pass.length < 4) return showErr('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร');
+  if (pass !== pass2) return showErr('รหัสผ่านไม่ตรงกัน กรุณากรอกใหม่');
+
+  // Check duplicate username
+  var existingUsers = window.users || [];
+  if (existingUsers.some(function(u){ return u.username === username; })) {
+    return showErr('ชื่อผู้ใช้ "' + username + '" มีในระบบแล้ว กรุณาเลือกชื่อใหม่');
+  }
+
+  if (btn) btn.disabled = true;
+  if (errEl) errEl.style.display = 'none';
+
+  // Hash password
+  var hashedPass = pass;
+  try {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass));
+    hashedPass = Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  } catch(e) {}
+
+  // Create user object (active: false = รอ admin อนุมัติ)
+  var newUser = {
+    id:       'u_reg_' + Date.now(),
+    username: username,
+    pass:     hashedPass,
+    hashed:   true,
+    name:     name,
+    dept:     dept,
+    position: position,
+    emp:      emp || username,
+    email:    '',
+    role:     'user',
+    active:   false,
+    pendingRegister: true,
+    registeredAt: new Date().toISOString()
+  };
+
+  // Save to users array
+  if (!window.users) window.users = [];
+  window.users.push(newUser);
+  try { localStorage.setItem('srp_users', JSON.stringify(window.users)); } catch(e){}
+
+  // Sync to server if possible
+  if (window.SrpSync && typeof window.SrpSync.push === 'function') {
+    window.SrpSync.push({ users: window.users });
+  }
+
+  // Update admin badge (เพิ่ม notification ว่ามี user ใหม่รออนุมัติ)
+  if (typeof updateBadge === 'function') updateBadge();
+
+  // Show success
+  if (body) body.style.display = 'none';
+  if (btn)  btn.style.display  = 'none';
+  if (okEl) {
+    okEl.textContent = '✓ ส่งคำขอสำเร็จ!\nบัญชี "' + username + '" กำลังรอ Admin อนุมัติ\nกรุณารอการแจ้งจาก IT';
+    okEl.style.display = 'block';
+    okEl.style.whiteSpace = 'pre-line';
+  }
+  if (typeof toast === 'function') toast('📋 ส่งคำขอลงทะเบียนแล้ว รอ Admin อนุมัติ', 'ok', 5000);
+}
+
+// Close backdrop
+document.getElementById('modal-register').addEventListener('click', function(e){
+  if (e.target === this) this.style.display = 'none';
+});
+</script>
+
+<!-- ═══════════ MODAL: ข้อมูลส่วนตัว ═══════════ -->
+<div id="modal-my-profile" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.45);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;font-family:'Sarabun',sans-serif">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1e40af,#2563eb);padding:20px 24px;display:flex;align-items:center;gap:14px">
+      <div id="mp-avatar" style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0">U</div>
+      <div>
+        <div id="mp-fullname" style="font-size:17px;font-weight:700;color:#fff">—</div>
+        <div id="mp-role-dept" style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px">—</div>
+      </div>
+      <button onclick="document.getElementById('modal-my-profile').style.display='none'" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <!-- Body -->
+    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">ชื่อผู้ใช้</span>
+        <span id="mp-username" style="font-size:14px;color:#111827;font-weight:600">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">ชื่อ-นามสกุล</span>
+        <span id="mp-name" style="font-size:14px;color:#111827">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">แผนก</span>
+        <span id="mp-dept" style="font-size:14px;color:#111827">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">สิทธิ์การใช้งาน</span>
+        <span id="mp-role-label" style="font-size:14px;color:#111827">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">อีเมล</span>
+        <span id="mp-email" style="font-size:14px;color:#111827">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding:8px 0">
+        <span style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.04em">สถานะบัญชี</span>
+        <span id="mp-status" style="font-size:13px;font-weight:600">—</span>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:14px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+      <a href="https://service.co.th/nteq/site/request-password-reset" target="_blank" style="font-size:13px;color:#2563eb;text-decoration:none;display:flex;align-items:center;gap:6px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 4v4l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        เปลี่ยนรหัสผ่าน
+      </a>
+      <button onclick="document.getElementById('modal-my-profile').style.display='none'" style="padding:8px 20px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openMyProfile() {
+  var u = window.currentUser;
+  if (!u) return;
+  var modal = document.getElementById('modal-my-profile');
+
+  // Avatar letter
+  var initials = (u.name || u.username || 'U').charAt(0).toUpperCase();
+  var av = document.getElementById('mp-avatar');
+  if (av) av.textContent = initials;
+
+  // Header
+  var fn = document.getElementById('mp-fullname');
+  if (fn) fn.textContent = u.name || u.username || '—';
+  var rd = document.getElementById('mp-role-dept');
+  if (rd) rd.textContent = ((window.ROLE_LABELS && window.ROLE_LABELS[u.role]) || u.role || '—') + (u.dept ? ' · ' + u.dept : '');
+
+  // Fields
+  var set = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+  set('mp-username',   u.username);
+  set('mp-name',       u.name);
+  set('mp-dept',       u.dept);
+  set('mp-role-label', (window.ROLE_LABELS && window.ROLE_LABELS[u.role]) || u.role);
+  set('mp-email',      u.email);
+
+  // Status badge
+  var st = document.getElementById('mp-status');
+  if (st) {
+    if (u.active !== false) {
+      st.textContent = '✓ ใช้งานได้';
+      st.style.color = '#16a34a';
+    } else {
+      st.textContent = '✗ ถูกระงับ';
+      st.style.color = '#ef4444';
+    }
+  }
+
+  modal.style.display = 'flex';
+}
+
+// Close modal on backdrop click
+document.getElementById('modal-my-profile').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+</script>
 
 </body>
 </html>
