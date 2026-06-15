@@ -2103,7 +2103,11 @@ function goTo(name, el) {
 
   // mobile: close sidebar on navigate
   const nav = document.querySelector('nav');
-  if (nav && window.innerWidth <= 768) nav.classList.remove('nav-open');
+  if (nav && window.innerWidth <= 768) {
+    nav.classList.remove('nav-open');
+    const ov = document.getElementById('mob-overlay');
+    if (ov) ov.classList.remove('show');
+  }
 }
 
 function goBack() {
