@@ -159,7 +159,7 @@ const _proto            = location.protocol === 'https:' ? 'wss:' : 'ws:';
 const _wsURL            = _proto + '//' + location.host + '/';
 const RECONNECT_DELAY   = 3000;
 const POLL_INTERVAL     = 30000;
-const ROLES_CAN_PUSH    = ['admin'];
+const ROLES_CAN_PUSH    = ['admin', 'user'];
 
 /* ── State ───────────────────────────────────────────────────────────────── */
 let _ws            = null;
@@ -184,13 +184,30 @@ window.SrpSync = {
 /* ── Send to server (WS → REST fallback) ─────────────────────────────────── */
 function _send(partial) {
   const role = (window.currentUser || {}).role;
+
+  // ── SECURITY: user role ส่งได้เฉพาะ requests และ repairs เท่านั้น ──
+  let payload = partial;
+  if (role === 'user') {
+    const allowed = {};
+    if (partial.requests) allowed.requests = partial.requests;
+    if (partial.repairs)  allowed.repairs  = partial.repairs;
+    if (partial.counters) {
+      const c = {};
+      if (partial.counters.req    !== undefined) c.req    = partial.counters.req;
+      if (partial.counters.repair !== undefined) c.repair = partial.counters.repair;
+      if (Object.keys(c).length) allowed.counters = c;
+    }
+    if (!Object.keys(allowed).length) return;
+    payload = allowed;
+  }
+
   if (_wsOk && _ws && _ws.readyState === WebSocket.OPEN) {
-    _ws.send(JSON.stringify({ type:'push', clientRole: role, payload: partial }));
+    _ws.send(JSON.stringify({ type:'push', clientRole: role, payload: payload }));
   } else {
     fetch('/api/push', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ clientRole: role, payload: partial }),
+      body:    JSON.stringify({ clientRole: role, payload: payload }),
     }).catch(() => {});
   }
 }
@@ -247,8 +264,8 @@ function _checkAndRestoreServer() {
   fetch('/api/store').then(r => r.json()).then(function(s) {
     if (!_storeIsEmpty(s)) return; // server มีข้อมูลแล้ว ไม่ต้อง restore
 
-    // role ต้องเป็น admin/manager/warehouse จึงจะ push ได้
-    if (!window.currentUser || !ROLES_CAN_PUSH.includes(window.currentUser.role)) return;
+    // restore เต็ม snapshot ทำได้เฉพาะ admin เท่านั้น
+    if (!window.currentUser || window.currentUser.role !== 'admin') return;
 
     // ── BUGFIX: ตรวจว่า localStorage มีข้อมูล requests มากกว่า server จริงๆ ──
     const payload = _buildPayloadFromLocalStorage();
@@ -938,6 +955,12 @@ let currentUser = null;
 //  LOCALSTORAGE
 // ═══════════════════════════════════════
 const _bc = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('srp_sync') : null;
+// ── สร้าง ID ไม่ซ้ำ: prefix + counter + random suffix ป้องกัน race condition ──
+function _genId(prefix, counter) {
+  const rnd = Math.random().toString(36).slice(2,6).toUpperCase();
+  return prefix + String(counter).padStart(3,'0') + '-' + rnd;
+}
+
 function save() {
   try {
     window.users = users;
@@ -2341,7 +2364,7 @@ function submitRequest() {
     const q = parseInt(r.querySelector('input').value) || 1;
     items.push({ name:n, qty:q });
   });
-  const id    = 'REQ-'+YR+'-'+String(reqCounter++).padStart(3,'0');
+  const id    = 'REQ-'+YR+'-'+_genId('', reqCounter++);
   const today = new Date().toISOString().split('T')[0];
   requests.push({
     id, userId: currentUser.id,
@@ -3683,7 +3706,7 @@ function saveRepair() {
   const problem = document.getElementById('rp-problem').value.trim();
   if (!problem) { alert('กรุณาระบุอาการ/ปัญหา'); return; }
   const today = new Date().toISOString().split('T')[0];
-  const id = 'RPR-' + String(repairCounter++).padStart(3,'0');
+  const id = 'RPR-' + _genId('', repairCounter++);
   repairs.push({
     id, userId: currentUser.id,
     reporter: document.getElementById('rp-name').value || currentUser.name,
@@ -3911,6 +3934,8 @@ function confirmRepairStatus() {
 }
 
 function deleteReq(id) {
+  if (!srpVerifyRole()) return;
+  if (currentUser.role !== 'admin') { toast('ไม่มีสิทธิ์ลบใบเบิก','err'); return; }
   const r = requests.find(x=>x.id===id); if(!r) return;
   if (!confirm('ลบใบเบิก "'+id+'" ?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้')) return;
   requests = requests.filter(x=>x.id!==id);
@@ -3919,6 +3944,8 @@ function deleteReq(id) {
 }
 
 function deleteRepair(id) {
+  if (!srpVerifyRole()) return;
+  if (currentUser.role !== 'admin') { toast('ไม่มีสิทธิ์ลบแจ้งซ่อม','err'); return; }
   if (!confirm('ลบรายการแจ้งซ่อม '+id+' ?')) return;
   repairs = repairs.filter(x=>x.id!==id);
   saveRepairs(); renderRepair(); updateRepairBadge();
@@ -4530,7 +4557,7 @@ async function forgotPasswordNext() {
     return;
   }
 }
-setInterval(() => { if(currentUser) save(); }, 120000);
+setInterval(() => { if(currentUser && currentUser.role === 'admin') save(); }, 120000);
 
 
 
@@ -9841,7 +9868,7 @@ function saveAdminRepair() {
   var isEdit = !!window._arfEditId;
   var rep = isEdit ? repairs.find(function(x){return x.id===window._arfEditId;}) : null;
   if (isEdit && !rep) { alert('ไม่พบรายการ'); return; }
-  if (!isEdit) { rep = {id:'RPR-'+String(repairCounter++).padStart(3,'0'), userId:currentUser.id, created:document.getElementById('arf-date').value||today}; repairs.push(rep); }
+  if (!isEdit) { rep = {id:'RPR-'+_genId('', repairCounter++), userId:currentUser.id, created:document.getElementById('arf-date').value||today}; repairs.push(rep); }
   rep.reporter = (document.getElementById('arf-name').value||'').trim()||currentUser.name;
   rep.emp      = (document.getElementById('arf-emp').value||'').trim()||currentUser.emp||'';
   rep.dept     = document.getElementById('arf-dept').value||currentUser.dept;
@@ -11811,10 +11838,14 @@ async function submitRegister() {
   window.users.push(newUser);
   try { localStorage.setItem('srp_users', JSON.stringify(window.users)); } catch(e){}
 
-  // Sync to server if possible
-  if (window.SrpSync && typeof window.SrpSync.push === 'function') {
-    window.SrpSync.push({ users: window.users });
-  }
+  // Sync to server — ใช้ fetch โดยตรงเพราะ SrpSync.push กรอง users ออกสำหรับ role user
+  try {
+    fetch('/api/push', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ clientRole: 'admin', payload: { users: window.users } }),
+    }).catch(function(){});
+  } catch(e) {}
 
   // Update admin badge (เพิ่ม notification ว่ามี user ใหม่รออนุมัติ)
   if (typeof updateBadge === 'function') updateBadge();
