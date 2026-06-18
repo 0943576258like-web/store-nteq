@@ -1,14 +1,5 @@
 /**
  * SRP Real-Time Sync Server
- * ─────────────────────────
- * เชื่อมต่อทุกเครื่องแบบ Real-time ผ่าน WebSocket
- * ข้อมูลที่แก้ไข/เพิ่มใหม่จะ sync ไปทุก Browser ทันที
- *
- * วิธีรัน:
- *   node server.js
- *
- * แล้วเปิดเบราว์เซอร์ที่:
- *   http://localhost:3000
  */
 
 const http        = require('http');
@@ -16,15 +7,12 @@ const fs          = require('fs');
 const path        = require('path');
 const { WebSocketServer } = require('ws');
 
-// ── Config ────────────────────────────────────────────────────────────────
 const PORT        = process.env.PORT || 3000;
 const DATA_FILE   = path.join(__dirname, 'srp_data.json');
 const INDEX_FILE  = path.join(__dirname, 'index.html');
 
-// ── In-memory store (persist ลง disk ด้วย) ────────────────────────────────
 let store = {};
 
-// โหลดข้อมูลจาก disk ถ้ามี
 function loadStore() {
   try {
     if (fs.existsSync(DATA_FILE)) {
@@ -37,7 +25,6 @@ function loadStore() {
   }
 }
 
-// บันทึกข้อมูลลง disk
 function saveStore() {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(store), 'utf8');
@@ -46,23 +33,44 @@ function saveStore() {
   }
 }
 
-// Merge partial update เข้า store
+// ── กรอง payload สำหรับ user role: รับได้เฉพาะ repairs และ requests ──
+function filterUserPayload(payload) {
+  if (!payload) return null;
+  const safe = {};
+  if (payload.repairs)  safe.repairs  = payload.repairs;
+  if (payload.requests) safe.requests = payload.requests;
+  if (payload.counters) {
+    const c = {};
+    if (payload.counters.repair !== undefined) c.repair = payload.counters.repair;
+    if (payload.counters.req    !== undefined) c.req    = payload.counters.req;
+    if (Object.keys(c).length) safe.counters = c;
+  }
+  return Object.keys(safe).length ? safe : null;
+}
+
+// ── Merge เฉพาะ repairs: merge รายการใหม่เข้า array เดิม ไม่ทับทั้ง array ──
 function mergeStore(partial) {
   if (!partial) return;
   const allowed = ['users','stock','requests','repairs','devices','settings','repairSettings','counters'];
   for (const key of allowed) {
-    if (partial[key] !== undefined) {
+    if (partial[key] === undefined) continue;
+
+    // repairs: merge รายการใหม่เข้าของเดิม ป้องกัน user ทับข้อมูลคนอื่น
+    if (key === 'repairs' && Array.isArray(partial.repairs) && Array.isArray(store.repairs)) {
+      const existingMap = {};
+      for (const r of store.repairs) existingMap[r.id] = r;
+      for (const r of partial.repairs) existingMap[r.id] = r; // เพิ่ม/อัปเดต
+      store.repairs = Object.values(existingMap);
+    } else {
       store[key] = partial[key];
     }
   }
   saveStore();
 }
 
-// ── HTTP Server ────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
 
-  // ── API: ดึงข้อมูลทั้งหมด
   if (req.method === 'GET' && url === '/api/store') {
     res.writeHead(200, {
       'Content-Type': 'application/json',
@@ -71,18 +79,20 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(store));
   }
 
-  // ── API: รับ push จาก client (REST fallback เมื่อ WS ไม่พร้อม)
   if (req.method === 'POST' && url === '/api/push') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
         const { clientRole, payload } = JSON.parse(body);
-        // อนุญาตเฉพาะ admin ส่ง push
-        if (clientRole === 'admin' && payload) {
-          mergeStore(payload);
-          // broadcast ไปทุก WebSocket client
-          broadcast({ type: 'update', payload }, null);
+        if (payload) {
+          // admin ส่งได้ทุกอย่าง, user ส่งได้เฉพาะ repairs/requests
+          const safePayload = clientRole === 'admin' ? payload : filterUserPayload(payload);
+          if (safePayload) {
+            mergeStore(safePayload);
+            broadcast({ type: 'update', payload: safePayload }, null);
+            console.log('[REST] Push from', clientRole, '→ keys:', Object.keys(safePayload).join(', '));
+          }
         }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ ok: true }));
@@ -94,7 +104,6 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ── CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -104,7 +113,6 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
-  // ── Serve index.html
   if (req.method === 'GET' && (url === '/' || url === '/index.html')) {
     try {
       const html = fs.readFileSync(INDEX_FILE, 'utf8');
@@ -116,19 +124,17 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  // ── 404
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not Found');
 });
 
-// ── WebSocket Server ───────────────────────────────────────────────────────
 const wss = new WebSocketServer({ server });
 const clients = new Set();
 
 function broadcast(msg, skipWs) {
   const data = JSON.stringify(msg);
   for (const ws of clients) {
-    if (ws !== skipWs && ws.readyState === 1) { // OPEN = 1
+    if (ws !== skipWs && ws.readyState === 1) {
       try { ws.send(data); } catch(e) {}
     }
   }
@@ -139,7 +145,6 @@ wss.on('connection', (ws, req) => {
   const ip = req.socket.remoteAddress || 'unknown';
   console.log(`[WS] Client connected (${ip}) — total: ${clients.size}`);
 
-  // ส่ง snapshot ปัจจุบันให้ client ใหม่ทันที
   try {
     ws.send(JSON.stringify({ type: 'init', payload: store }));
   } catch(e) {}
@@ -150,12 +155,14 @@ wss.on('connection', (ws, req) => {
 
     if (msg.type === 'push') {
       const { clientRole, payload } = msg;
-      // อนุญาตเฉพาะ admin
-      if (clientRole === 'admin' && payload) {
-        mergeStore(payload);
-        console.log('[WS] Push from admin → broadcast, keys:', Object.keys(payload).join(', '));
-        // broadcast ไปทุกคนยกเว้นคนส่ง
-        broadcast({ type: 'update', payload }, ws);
+      if (payload) {
+        // admin ส่งได้ทุกอย่าง, user ส่งได้เฉพาะ repairs/requests
+        const safePayload = clientRole === 'admin' ? payload : filterUserPayload(payload);
+        if (safePayload) {
+          mergeStore(safePayload);
+          console.log('[WS] Push from', clientRole, '→ broadcast, keys:', Object.keys(safePayload).join(', '));
+          broadcast({ type: 'update', payload: safePayload }, ws);
+        }
       }
     }
   });
@@ -168,18 +175,14 @@ wss.on('connection', (ws, req) => {
   ws.on('error', () => clients.delete(ws));
 });
 
-// ── Start ──────────────────────────────────────────────────────────────────
 loadStore();
 server.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('╔══════════════════════════════════════════════╗');
   console.log('║   SRP Real-Time Sync Server  ✓  RUNNING      ║');
   console.log('╠══════════════════════════════════════════════╣');
-  console.log(`║   เปิดเบราว์เซอร์ที่:                        ║`);
   console.log(`║   http://localhost:${PORT}                     ║`);
-  console.log('║                                              ║');
-  console.log('║   ข้อมูลจะ sync ทุกเครื่องแบบ Real-time     ║');
-  console.log('║   และบันทึกลงไฟล์ srp_data.json             ║');
+  console.log('║   User role: ส่ง repairs/requests ได้แล้ว   ║');
   console.log('╚══════════════════════════════════════════════╝');
   console.log('');
 });
