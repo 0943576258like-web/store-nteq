@@ -4619,60 +4619,9 @@ function setDevTab(tab) {
   document.querySelectorAll('.dev-search-panel').forEach(p => p.classList.toggle('hidden', p.dataset.panel !== tab));
 }
 
-function renderDevices() {
-  const q = (document.getElementById('dev-q')?.value || '').toLowerCase();
-  const st = document.getElementById('dev-status-filter')?.value || '';
-  let filtered = deviceData.filter(d => {
-    const matchQ = !q || d.code.toLowerCase().includes(q) || d.name.toLowerCase().includes(q) ||
-      d.sn.toLowerCase().includes(q) || d.dept.toLowerCase().includes(q) || d.user.toLowerCase().includes(q) ||
-      d.brand.toLowerCase().includes(q) || d.model.toLowerCase().includes(q);
-    const matchS = !st || d.status === st;
-    return matchQ && matchS;
-  });
-  const active = filtered.filter(d => d.status === 'active').length;
-  const transit = filtered.filter(d => d.status === 'transit').length;
-  const inactive = filtered.filter(d => d.status === 'inactive').length;
-  const total = deviceData.length;
-  document.getElementById('dev-stat-bar').innerHTML =
-    `<span style="color:#16a34a"> ใช้งานปกติ <strong>${deviceData.filter(d=>d.status==='active').length}</strong></span>` +
-    `<span style="color:#2563eb"> อุปกรณ์ส่วนกลาง <strong>${deviceData.filter(d=>d.status==='transit').length}</strong></span>` +
-    `<span style="color:#dc2626"> เลิกใช้งาน <strong>${deviceData.filter(d=>d.status==='inactive').length}</strong></span>` +
-    `<span style="color:#374151">ℹ ทั้งหมด <strong>${total}</strong></span>`;
-  (document.getElementById('dev-count-txt')||{}).textContent = `แสดง 1 ถึง ${filtered.length} จาก ${filtered.length} รายการ`;
-  document.getElementById('dev-tbody').innerHTML = filtered.length ? filtered.map(d => `
-    <tr>
-      <td><input type="checkbox" data-id="${d.id}" class="dev-chk" onchange="updateDevBulkBar()"></td>
-      <td>
-        <div style="width:60px;height:50px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:10px">NO IMG</div>
-      </td>
-      <td style="font-size:13px">
-        <strong style="font-family:'IBM Plex Mono',monospace;font-size:12px">${d.code}</strong><br>
-        <span style="color:#6b7280;font-size:11px">S/N : ${d.sn||'-'}</span>
-      </td>
-      <td>
-        <strong>${d.name}</strong><br>
-        <span style="color:#6b7280;font-size:12px">${d.type}</span><br>
-        ${d.subtype ? `<span style="color:#22c55e;font-size:11px;cursor:pointer">${d.subtype}</span>` : ''}
-      </td>
-      <td style="font-size:13px">${d.brand||''} ${d.model||''}</td>
-      <td style="font-size:13px">${d.dept||'-'}</td>
-      <td style="font-size:13px">${d.user||'-'}${d.company?`<br><span style="font-size:11px;color:#6b7280">${d.company}</span>`:''}</td>
-      <td style="font-size:12px">${d.warranty||'-'}</td>
-      <td style="font-size:13px">${d.price > 0 ? d.price.toLocaleString() : '-'}</td>
-      <td>
-        <button class="btn-icon" title="ดูรายละเอียด" onclick="viewDevice('${d.id}')" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:4px;cursor:pointer;margin-right:3px">
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M10 9v5M10 7v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </button>
-        <button class="btn-icon" title="แก้ไข" onclick="editDevice('${d.id}')" style="background:#f97316;color:#fff;border:none;padding:5px 8px;border-radius:4px;cursor:pointer">
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M14.5 3.5l2 2-9.5 9.5-2.5.5.5-2.5 9.5-9.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </td>
-    </tr>`).join('') : '<tr><td colspan="10"><div class="empty-state">ไม่พบข้อมูลอุปกรณ์</div></td></tr>';
-}
+// renderDevices (duplicate removed)
 
-function updateDevBulkBar() {
-  const checked = document.querySelectorAll('.dev-chk:checked').length;
-  document.getElementById('dev-bulk-bar').style.display = checked > 0 ? 'flex' : 'none';
+function updateDevBulkBar_OLD_REMOVED() {
   (document.getElementById('dev-checked-count')||{}).textContent = checked;
 }
 
@@ -4811,41 +4760,44 @@ function closeDeviceModal() {
 }
 
 function editDevice(id) {
-  const d = deviceData.find(x => x.id === id); if (!d) return;
-  editDeviceId = id;
-  (document.getElementById('dev-modal-title')||{}).textContent = 'แก้ไขอุปกรณ์';
-  try { _devDeptOptions(); } catch(e){} try { _devUserOptions(); } catch(e){}
-  const f = (fid, val) => { const el = document.getElementById(fid); if(el) el.value = val || ''; };
-  f('dev-m-code', d.code); f('dev-m-name', d.name); f('dev-m-brand', d.brand);
-  f('dev-m-model', d.model); f('dev-m-sn', d.sn); f('dev-m-company', d.company||d.location||'');
-  f('dev-m-startdate', d.startDate||''); f('dev-m-docref', d.docRef||'');
-  f('dev-m-detail', d.detail||''); f('dev-m-vendor', d.vendor||'');
-  f('dev-m-warranty', d.warranty||''); f('dev-m-warrantyexp', d.warrantyExp||'');
-  f('dev-m-cpu', d.cpu||''); f('dev-m-ram', d.ram||''); f('dev-m-display', d.display||'');
-  f('dev-m-hdd', d.hdd||''); f('dev-m-mouse', d.mouse||''); f('dev-m-keyboard', d.keyboard||'');
-  f('dev-m-ip', d.ip||''); f('dev-m-mac', d.mac||''); f('dev-m-ups', d.ups||'');
-  f('dev-m-hwdetail', d.hwdetail||'');
-  document.getElementById('dev-m-price').value = d.price || 0;
-  document.getElementById('dev-m-status').value = d.status || 'active';
-  const sel = document.getElementById('dev-m-dept'); if(sel) sel.value = d.dept||'';
-  try { srpSet('dev-m-dept', d.dept||'', true); } catch(e){}
-  const usel = document.getElementById('dev-m-user'); if(usel) usel.value = d.user||'';
-  const tsel = document.getElementById('dev-m-type'); if(tsel) tsel.value = d.type||'';
   try {
-    // load subtype options สำหรับ type ที่เลือก แล้ว set ค่า
-    if(typeof srpInitSelect==='function' && typeof buildSubtypeOptions==='function'){
-      srpInitSelect({targetId:'dev-m-subtype',placeholder:'ประเภทอุปกรณ์',options:buildSubtypeOptions(d.type||''),allowEmpty:false,onChange:function(){}});
-    }
-    srpSet('dev-m-type', d.type||'', true);
-    srpSet('dev-m-subtype', d.subtype||'', true);
-  } catch(e){}
-  const stsel = document.getElementById('dev-m-subtype'); if(stsel) stsel.value = d.subtype||'';
-  const cb = document.getElementById('dev-m-shared'); if(cb) cb.checked = !!d.shared;
-  const pr = document.getElementById('dev-m-img-preview');
-  if(pr && d.img){ pr.src=d.img; pr.style.display='block'; } else if(pr){ pr.style.display='none'; }
-  const firstTab = document.querySelector('.dev-form-tab');
-  if(firstTab) switchDevFormTab(firstTab,'dev-ftab-info');
-  document.getElementById('dev-modal').style.display = 'flex';
+    const d = deviceData.find(x => x.id === id); if (!d) return;
+    editDeviceId = id;
+    const _s = function(fid, val) { var el = document.getElementById(fid); if(el) el.value = (val===undefined||val===null)?'':val; };
+    try { (document.getElementById('dev-modal-title')||{}).textContent = 'แก้ไขอุปกรณ์'; } catch(e){}
+    try { _devDeptOptions(); } catch(e){}
+    try { _devUserOptions(); } catch(e){}
+    _s('dev-m-code', d.code); _s('dev-m-name', d.name); _s('dev-m-brand', d.brand);
+    _s('dev-m-model', d.model); _s('dev-m-sn', d.sn); _s('dev-m-company', d.company||d.location||'');
+    _s('dev-m-startdate', d.startDate||''); _s('dev-m-docref', d.docRef||'');
+    _s('dev-m-detail', d.detail||''); _s('dev-m-vendor', d.vendor||'');
+    _s('dev-m-warranty', d.warranty||''); _s('dev-m-warrantyexp', d.warrantyExp||'');
+    _s('dev-m-cpu', d.cpu||''); _s('dev-m-ram', d.ram||''); _s('dev-m-display', d.display||'');
+    _s('dev-m-hdd', d.hdd||''); _s('dev-m-mouse', d.mouse||''); _s('dev-m-keyboard', d.keyboard||'');
+    _s('dev-m-ip', d.ip||''); _s('dev-m-mac', d.mac||''); _s('dev-m-ups', d.ups||'');
+    _s('dev-m-hwdetail', d.hwdetail||'');
+    _s('dev-m-price', d.price||0); _s('dev-m-status', d.status||'active');
+    try { srpSet('dev-m-dept', d.dept||'', true); } catch(e){ _s('dev-m-dept', d.dept||''); }
+    _s('dev-m-user', d.user||'');
+    try {
+      if(typeof srpInitSelect==='function' && typeof buildSubtypeOptions==='function'){
+        srpInitSelect({targetId:'dev-m-subtype',placeholder:'ประเภทอุปกรณ์',options:buildSubtypeOptions(d.type||''),allowEmpty:false,onChange:function(){}});
+      }
+      srpSet('dev-m-type', d.type||'', true);
+      srpSet('dev-m-subtype', d.subtype||'', true);
+    } catch(e){ _s('dev-m-type', d.type||''); _s('dev-m-subtype', d.subtype||''); }
+    var cb = document.getElementById('dev-m-shared'); if(cb) cb.checked = !!d.shared;
+    var pr = document.getElementById('dev-m-img-preview');
+    if(pr && d.img){ pr.src=d.img; pr.style.display='block'; } else if(pr){ pr.style.display='none'; }
+    try { var firstTab = document.querySelector('.dev-form-tab'); if(firstTab) switchDevFormTab(firstTab,'dev-ftab-info'); } catch(e){}
+    var modal = document.getElementById('dev-modal');
+    if(modal) modal.style.display = 'flex';
+  } catch(ex) {
+    console.error('editDevice error:', ex);
+    // เปิด modal แม้จะมี error บางส่วน
+    var modal = document.getElementById('dev-modal');
+    if(modal) modal.style.display = 'flex';
+  }
 }
 
 function saveDevice() {
