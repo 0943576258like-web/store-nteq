@@ -4814,7 +4814,7 @@ function editDevice(id) {
   const d = deviceData.find(x => x.id === id); if (!d) return;
   editDeviceId = id;
   (document.getElementById('dev-modal-title')||{}).textContent = 'แก้ไขอุปกรณ์';
-  _devDeptOptions(); _devUserOptions();
+  try { _devDeptOptions(); } catch(e){} try { _devUserOptions(); } catch(e){}
   const f = (fid, val) => { const el = document.getElementById(fid); if(el) el.value = val || ''; };
   f('dev-m-code', d.code); f('dev-m-name', d.name); f('dev-m-brand', d.brand);
   f('dev-m-model', d.model); f('dev-m-sn', d.sn); f('dev-m-company', d.company||d.location||'');
@@ -10642,7 +10642,6 @@ function _buildDevUserOptions() {
 
 
 function _devDeptOptions() {
-  // Refresh srpSelect for dev-m-dept with latest dept options
   try {
     if (typeof srpInitSelect === 'function' && typeof buildDeptOptions === 'function') {
       srpInitSelect({
@@ -10653,7 +10652,7 @@ function _devDeptOptions() {
         onChange: function() {}
       });
     }
-  } catch(e) {}
+  } catch(e) { console.warn('_devDeptOptions err', e); }
 }
 
 function _devUserOptions(setVal) {
