@@ -638,7 +638,7 @@ function filterRepairByStatus(status, btn) {
 function updateRepairStatusCounts() {
   const _isUserRole = currentUser && currentUser.role === 'user';
   const _myRepairs = _isUserRole
-    ? repairs.filter(r => r.userId === currentUser.id || r.reporter === currentUser.name || r.reporter === currentUser.username)
+    ? repairs.filter(r => r.reporter === currentUser.name || r.reporter === currentUser.username)
     : repairs;
   const statuses = ['all','open','checking','inprogress','sent','done','cancelled','wait_approve','complete'];
   statuses.forEach(s => {
@@ -3962,13 +3962,15 @@ function updateRepairBadge() {
 function renderRepair() {
   const _isUserRole = currentUser && currentUser.role === 'user';
   updateRepairStatusCounts();
-  // ── FIX: ไม่แตะ global repairs เลย ใช้ตัวแปร local แทนทั้งหมด ──
+  const _origRepairs = repairs;
   let _scopedRepairs = _isUserRole
-    ? repairs.filter(r => r.userId === currentUser.id || r.reporter === currentUser.name || r.reporter === currentUser.username)
-    : repairs.slice();
+    ? repairs.filter(r => r.reporter === currentUser.name || r.reporter === currentUser.username)
+    : repairs;
   if (currentRepairStatusFilter && currentRepairStatusFilter !== 'all') {
     _scopedRepairs = _scopedRepairs.filter(r => r.status === currentRepairStatusFilter);
   }
+  repairs = _scopedRepairs;
+  const _restoreRepairs = () => { repairs = _origRepairs; };
   const sf = document.getElementById('rflt-status') ? document.getElementById('rflt-status').value : '';
   const tf = (function(){ var w=document.querySelector('[data-srp-id="rflt-type"]'); return (w&&w._srpGetValue)?w._srpGetValue():(document.getElementById('rflt-type')?document.getElementById('rflt-type').value:''); })();
   const p  = PERMS[currentUser.role];
@@ -3976,9 +3978,9 @@ function renderRepair() {
   const bC = {open:'b-pending',inprogress:'b-warn',done:'b-issued',cannot:'b-inactive'};
 
   const cnt = {open:0,inprogress:0,done:0,cannot:0};
-  _scopedRepairs.forEach(r=>{ if(cnt[r.status]!==undefined) cnt[r.status]++; });
+  repairs.forEach(r=>{ if(cnt[r.status]!==undefined) cnt[r.status]++; });
   const _repMetrics = document.getElementById('repair-metrics');
-  if (!_repMetrics) return;
+  if (!_repMetrics) { _restoreRepairs(); return; }
   _repMetrics.innerHTML = `
     <div class="metric"><div class="metric-val" style="color:var(--amber)">${cnt.open}</div><div class="metric-label">รอดำเนินการ</div></div>
     <div class="metric"><div class="metric-val" style="color:var(--blue)">${cnt.inprogress}</div><div class="metric-label">กำลังซ่อม</div></div>
@@ -3986,9 +3988,9 @@ function renderRepair() {
     <div class="metric"><div class="metric-val" style="color:var(--red)">${cnt.cannot}</div><div class="metric-label">ซ่อมไม่ได้</div></div>`;
 
   const canManage = p.approve || p.issue || currentUser.role==='admin';
-  const filtered = _scopedRepairs.filter(r=>(!sf||r.status===sf)&&(!tf||r.type===tf));
+  const filtered = repairs.filter(r=>(!sf||r.status===sf)&&(!tf||r.type===tf));
   const _repTbody = document.getElementById('repair-tbody');
-  if (!_repTbody) return;
+  if (!_repTbody) { _restoreRepairs(); return; }
   _repTbody.innerHTML = filtered.length ? [...filtered].reverse().map(r=>`
     <tr>
       <td><strong style="font-family:'IBM Plex Mono',monospace;font-size:13px">${r.id}</strong>
@@ -4016,6 +4018,7 @@ function renderRepair() {
         </div>
       </td>
     </tr>`).join('') : '<tr><td colspan="9"><div class="empty-state">ไม่พบรายการแจ้งซ่อม</div></td></tr>';
+  _restoreRepairs();
 }
 
 function exportRepair() {
@@ -10637,6 +10640,21 @@ function _buildDevUserOptions() {
 
 
 
+
+function _devDeptOptions() {
+  // Refresh srpSelect for dev-m-dept with latest dept options
+  try {
+    if (typeof srpInitSelect === 'function' && typeof buildDeptOptions === 'function') {
+      srpInitSelect({
+        targetId: 'dev-m-dept',
+        placeholder: 'หน่วยงาน / แผนก',
+        options: buildDeptOptions(false),
+        allowEmpty: false,
+        onChange: function() {}
+      });
+    }
+  } catch(e) {}
+}
 
 function _devUserOptions(setVal) {
   var listEl = document.getElementById('dev-user-list');
