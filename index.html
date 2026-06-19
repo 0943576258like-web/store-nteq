@@ -6992,11 +6992,9 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
 <script>
 /* ──────────────────────────────────────────────
    FORGOT PASSWORD — OTP Flow
-   OTP สร้างฝั่ง client, "ส่ง" ผ่าน Email API (EmailJS / mailto fallback)
-   เก็บ hash ของ OTP ใน sessionStorage เพื่อความปลอดภัย
+   OTP สร้างและตรวจสอบฝั่ง server (server.js) ผ่าน Outlook/M365 SMTP จริง
+   ฝั่ง client เป็นเพียงตัวเรียก API เท่านั้น ไม่เก็บ OTP หรือ hash ใดๆ
 ────────────────────────────────────────────── */
-var _fpOtpHash   = null;   // SHA-256 ของ OTP ที่สร้าง
-var _fpOtpExpiry = 0;      // timestamp หมดอายุ (10 นาที)
 
 function showForgotBox() {
   document.getElementById('screen-login').style.display = 'none';
@@ -7019,16 +7017,10 @@ function fpReset() {
     var e=document.getElementById(id); if(e) e.value='';
   });
   window._fpUser   = null;
-  _fpOtpHash       = null;
-  _fpOtpExpiry     = 0;
 }
 
-/* สร้าง OTP 6 หลัก */
-function _fpGenOtp() {
-  var arr = new Uint32Array(1);
-  crypto.getRandomValues(arr);
-  return String(100000 + (arr[0] % 900000));
-}
+/* ฐาน URL ของ API (เปลี่ยนตามที่ deploy จริง ถ้า frontend อยู่คนละโดเมนกับ server.js) */
+var SRP_API_BASE = window.SRP_API_BASE || '';
 
 /* แสดง step */
 function _fpShow(stepId) {
@@ -7037,7 +7029,7 @@ function _fpShow(stepId) {
   });
 }
 
-/* Step 1 → ตรวจ email + ส่ง OTP */
+/* Step 1 → ตรวจ email + ขอให้ server ส่ง OTP จริง */
 async function fpStep1Next() {
   var email = (document.getElementById('fp-email').value||'').trim().toLowerCase();
   var e1 = document.getElementById('fp-err1');
@@ -7054,31 +7046,35 @@ async function fpStep1Next() {
   var btn = document.getElementById('fp-btn1');
   btn.disabled = true; btn.textContent = 'กำลังส่ง OTP...';
 
-  /* สร้าง OTP */
-  var otp = _fpGenOtp();
-  _fpOtpHash   = await srpHash(otp);
-  _fpOtpExpiry = Date.now() + 10*60*1000;
+  try {
+    var resp = await fetch(SRP_API_BASE + '/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await resp.json();
 
-  /* ส่ง OTP ผ่าน mailto (เปิด email client) ─ สำรองกรณีไม่มี SMTP backend */
-  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน');
-  var body = encodeURIComponent(
-    'รหัส OTP ของท่านคือ: ' + otp + '\n\n' +
-    'รหัสนี้มีอายุ 10 นาที หากท่านไม่ได้ร้องขอ กรุณาเพิกเฉยต่ออีเมลนี้\n\n' +
-    'ระบบจัดการสต๊อก IT'
-  );
+    if (!resp.ok || !data.ok) {
+      btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
+      if (data.error === 'smtp_not_configured') {
+        e1.textContent = 'ระบบยังไม่ได้ตั้งค่าการส่งอีเมล กรุณาติดต่อผู้ดูแลระบบ';
+      } else {
+        e1.textContent = 'ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+      }
+      e1.style.display = 'block';
+      return;
+    }
 
-  /* ลอง open mailto — จะเปิด email client ของผู้ใช้ */
-  var mailtoLink = 'mailto:' + email + '?subject=' + subject + '&body=' + body;
-  window.open(mailtoLink, '_blank');
-
-  /* แสดง Step 2 */
-  document.getElementById('fp-confirmed-email').textContent = email;
-  btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
-  _fpShow('fp-step2');
-  document.getElementById('fp-otp').focus();
-
-  /* countdown resend */
-  _fpStartResendCountdown();
+    document.getElementById('fp-confirmed-email').textContent = email;
+    btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
+    _fpShow('fp-step2');
+    document.getElementById('fp-otp').focus();
+    _fpStartResendCountdown();
+  } catch(err) {
+    btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
+    e1.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
+    e1.style.display = 'block';
+  }
 }
 
 /* countdown ปุ่มส่งใหม่ */
@@ -7104,32 +7100,58 @@ async function fpResendOtp() {
   var email = (document.getElementById('fp-email').value||'').trim().toLowerCase()
            || ((window._fpUser||{}).email||'');
   if(!email) return;
-  var otp = _fpGenOtp();
-  _fpOtpHash   = await srpHash(otp);
-  _fpOtpExpiry = Date.now() + 10*60*1000;
-  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน (ส่งใหม่)');
-  var body = encodeURIComponent('รหัส OTP ของท่านคือ: ' + otp + '\n\nรหัสนี้มีอายุ 10 นาที\n\nระบบจัดการสต๊อก IT');
-  window.open('mailto:' + email + '?subject=' + subject + '&body=' + body, '_blank');
-  document.getElementById('fp-otp').value = '';
-  _fpStartResendCountdown();
-  if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
+  try {
+    var resp = await fetch(SRP_API_BASE + '/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await resp.json();
+    document.getElementById('fp-otp').value = '';
+    _fpStartResendCountdown();
+    if (resp.ok && data.ok) {
+      if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
+    } else {
+      if(typeof toast==='function') toast('⚠️ ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่','error',4000);
+    }
+  } catch(err) {
+    if(typeof toast==='function') toast('⚠️ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้','error',4000);
+  }
 }
 
-/* Step 2 → ตรวจ OTP */
+/* Step 2 → ส่ง OTP ไปให้ server ตรวจสอบ (server เป็นคนเก็บ OTP จริง ปลอดภัยกว่า client-side hash) */
 async function fpStep2Next() {
   var otp = (document.getElementById('fp-otp').value||'').trim();
   var e2  = document.getElementById('fp-err2');
   e2.style.display='none'; e2.textContent='';
 
   if(!otp || otp.length!==6){ e2.textContent='กรุณากรอกรหัส OTP 6 หลัก'; e2.style.display='block'; return; }
-  if(Date.now() > _fpOtpExpiry){ e2.textContent='รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่'; e2.style.display='block'; return; }
 
-  var inputHash = await srpHash(otp);
-  if(inputHash !== _fpOtpHash){ e2.textContent='รหัส OTP ไม่ถูกต้อง'; e2.style.display='block'; return; }
+  var email = (document.getElementById('fp-email').value||'').trim().toLowerCase();
 
-  /* ผ่าน → ไป step 3 */
-  _fpShow('fp-step3');
-  document.getElementById('fp-newpass').focus();
+  try {
+    var resp = await fetch(SRP_API_BASE + '/api/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, otp: otp })
+    });
+    var data = await resp.json();
+
+    if (!resp.ok || !data.ok) {
+      if (data.error === 'expired') e2.textContent = 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่';
+      else if (data.error === 'mismatch') e2.textContent = 'รหัส OTP ไม่ถูกต้อง';
+      else e2.textContent = 'ไม่พบคำขอ OTP กรุณาขอรหัสใหม่อีกครั้ง';
+      e2.style.display = 'block';
+      return;
+    }
+
+    /* ผ่าน → ไป step 3 */
+    _fpShow('fp-step3');
+    document.getElementById('fp-newpass').focus();
+  } catch(err) {
+    e2.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
+    e2.style.display = 'block';
+  }
 }
 
 /* Step 3 → บันทึกรหัสใหม่ */
@@ -7215,9 +7237,7 @@ async function fpStep3Next() {
 </div>
 
 <script>
-/* ── Modal Forgot Password — OTP Flow ── */
-var _mfpOtpHash   = null;
-var _mfpOtpExpiry = 0;
+/* ── Modal Forgot Password — OTP Flow (เรียก server.js จริง) ── */
 
 function openForgotPasswordModal() {
   _mfpReset();
@@ -7241,8 +7261,6 @@ function _mfpReset() {
   });
   document.getElementById('forgot-action-btn').textContent = 'ถัดไป';
   window._mfpUser   = null;
-  _mfpOtpHash       = null;
-  _mfpOtpExpiry     = 0;
 }
 function _mfpShowStep(n) {
   [1,2,3,4].forEach(function(i){
@@ -7280,19 +7298,31 @@ async function mfpStep1Next() {
   var btn = document.getElementById('forgot-action-btn');
   btn.disabled=true; btn.textContent='กำลังส่ง...';
 
-  var otp = _fpGenOtp ? _fpGenOtp() : String(100000+Math.floor(Math.random()*900000));
-  _mfpOtpHash   = await srpHash(otp);
-  _mfpOtpExpiry = Date.now() + 10*60*1000;
+  try {
+    var resp = await fetch((window.SRP_API_BASE||'') + '/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await resp.json();
+    btn.disabled = false;
 
-  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน');
-  var body = encodeURIComponent('รหัส OTP ของท่านคือ: ' + otp + '\n\nรหัสนี้มีอายุ 10 นาที หากท่านไม่ได้ร้องขอ กรุณาเพิกเฉยต่ออีเมลนี้\n\nระบบจัดการสต๊อก IT');
-  window.open('mailto:'+email+'?subject='+subject+'&body='+body, '_blank');
+    if (!resp.ok || !data.ok) {
+      if (data.error === 'smtp_not_configured') e1.textContent = 'ระบบยังไม่ได้ตั้งค่าการส่งอีเมล กรุณาติดต่อผู้ดูแลระบบ';
+      else e1.textContent = 'ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+      e1.style.display = 'block';
+      return;
+    }
 
-  document.getElementById('forgot-confirmed-email').textContent = email;
-  btn.disabled=false;
-  _mfpShowStep(2);
-  _mfpResendCountdown();
-  setTimeout(function(){ var oi=document.getElementById('forgot-otp'); if(oi) oi.focus(); }, 100);
+    document.getElementById('forgot-confirmed-email').textContent = email;
+    _mfpShowStep(2);
+    _mfpResendCountdown();
+    setTimeout(function(){ var oi=document.getElementById('forgot-otp'); if(oi) oi.focus(); }, 100);
+  } catch(err) {
+    btn.disabled = false;
+    e1.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
+    e1.style.display = 'block';
+  }
 }
 function _mfpResendCountdown() {
   var link=document.getElementById('forgot-resend-link'); if(!link) return;
@@ -7308,23 +7338,51 @@ function _mfpResendCountdown() {
 async function mfpResend() {
   var email = ((window._mfpUser||{}).email||'');
   if(!email) return;
-  var otp = _fpGenOtp ? _fpGenOtp() : String(100000+Math.floor(Math.random()*900000));
-  _mfpOtpHash   = await srpHash(otp);
-  _mfpOtpExpiry = Date.now() + 10*60*1000;
-  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน (ส่งใหม่)');
-  var body = encodeURIComponent('รหัส OTP ของท่านคือ: ' + otp + '\n\nรหัสนี้มีอายุ 10 นาที\n\nระบบจัดการสต๊อก IT');
-  window.open('mailto:'+email+'?subject='+subject+'&body='+body, '_blank');
-  document.getElementById('forgot-otp').value='';
-  _mfpResendCountdown();
-  if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
+  try {
+    var resp = await fetch((window.SRP_API_BASE||'') + '/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await resp.json();
+    document.getElementById('forgot-otp').value='';
+    _mfpResendCountdown();
+    if (resp.ok && data.ok) {
+      if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
+    } else {
+      if(typeof toast==='function') toast('⚠️ ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่','error',4000);
+    }
+  } catch(err) {
+    if(typeof toast==='function') toast('⚠️ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้','error',4000);
+  }
 }
 async function mfpStep2Next() {
   var otp = (document.getElementById('forgot-otp').value||'').trim();
   var e2 = document.getElementById('forgot-err2'); e2.style.display='none'; e2.textContent='';
   if(!otp||otp.length!==6){ e2.textContent='กรุณากรอกรหัส OTP 6 หลัก'; e2.style.display='block'; return; }
-  if(Date.now()>_mfpOtpExpiry){ e2.textContent='รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่'; e2.style.display='block'; return; }
-  var h = await srpHash(otp);
-  if(h!==_mfpOtpHash){ e2.textContent='รหัส OTP ไม่ถูกต้อง'; e2.style.display='block'; return; }
+
+  var email = (document.getElementById('forgot-email').value||'').trim().toLowerCase();
+
+  try {
+    var resp = await fetch((window.SRP_API_BASE||'') + '/api/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, otp: otp })
+    });
+    var data = await resp.json();
+
+    if (!resp.ok || !data.ok) {
+      if (data.error === 'expired') e2.textContent = 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่';
+      else if (data.error === 'mismatch') e2.textContent = 'รหัส OTP ไม่ถูกต้อง';
+      else e2.textContent = 'ไม่พบคำขอ OTP กรุณาขอรหัสใหม่อีกครั้ง';
+      e2.style.display = 'block';
+      return;
+    }
+  } catch(err) {
+    e2.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
+    e2.style.display = 'block';
+    return;
+  }
   _mfpShowStep(3);
   setTimeout(function(){ var p=document.getElementById('forgot-newpass'); if(p) p.focus(); }, 100);
 }
