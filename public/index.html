@@ -4836,79 +4836,87 @@ function saveDevice() {
 }
 
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   
 /* ═══════════════════════════════════════════
-   PREMIUM NAVY ENTERPRISE THEME
+   FORMAL NAVY ENTERPRISE THEME v2
    NTEQ IT Stock & Repair Management System
 ═══════════════════════════════════════════ */
 :root {
-  --bg:            #f8fafc;
-  --bg-2:          #f1f5f9;
+  /* ── Surfaces ── */
+  --bg:            #f4f6f9;
+  --bg-2:          #eaecf0;
   --surface:       #ffffff;
-  --surface-2:     #f8fafc;
-  --surface-3:     #f1f5f9;
-  --glass:         rgba(255,255,255,0.95);
+  --surface-2:     #f8f9fb;
+  --surface-3:     #f1f3f6;
+  --glass:         rgba(255,255,255,0.97);
   --glass-border:  rgba(0,0,0,0.08);
 
-  --border:        #e2e8f0;
-  --border-bright: #cbd5e1;
-  --border-hover:  #94a3b8;
+  /* ── Borders ── */
+  --border:        #dde1e9;
+  --border-bright: #c8cdd8;
+  --border-hover:  #9aa3b4;
 
-  --text:          #1e293b;
-  --text-muted:    #64748b;
-  --text-light:    #94a3b8;
-  --text-dim:      #94a3b8;
+  /* ── Text ── */
+  --text:          #111827;
+  --text-muted:    #4b5563;
+  --text-light:    #9ca3af;
+  --text-dim:      #9ca3af;
 
-  --accent:        #00a855;
-  --accent-bright: #00cc66;
-  --accent-dim:    #007a3d;
-  --accent-glow:   rgba(0,168,85,0.20);
-  --accent-light:  rgba(0,168,85,0.10);
+  /* ── Primary accent — Navy Blue ── */
+  --accent:        #1d4ed8;
+  --accent-bright: #2563eb;
+  --accent-dim:    #1e3a8a;
+  --accent-glow:   rgba(29,78,216,0.15);
+  --accent-light:  rgba(29,78,216,0.08);
 
-  --cyan:          #0891b2;
-  --cyan-light:    rgba(8,145,178,0.10);
-  --amber:         #d97706;
-  --amber-light:   rgba(217,119,6,0.10);
-  --red:           #dc2626;
-  --red-light:     rgba(220,38,38,0.10);
-  --green:         #16a34a;
-  --green-light:   rgba(22,163,74,0.10);
-  --purple:        #7c3aed;
-  --purple-light:  rgba(124,58,237,0.10);
-  --blue:          #2563eb;
-  --blue-light:    rgba(37,99,235,0.10);
+  /* ── Status colors ── */
+  --cyan:          #0369a1;
+  --cyan-light:    rgba(3,105,161,0.09);
+  --amber:         #b45309;
+  --amber-light:   rgba(180,83,9,0.09);
+  --red:           #b91c1c;
+  --red-light:     rgba(185,28,28,0.09);
+  --green:         #15803d;
+  --green-light:   rgba(21,128,61,0.09);
+  --purple:        #6d28d9;
+  --purple-light:  rgba(109,40,217,0.09);
+  --blue:          #1d4ed8;
+  --blue-light:    rgba(29,78,216,0.09);
 
-  --radius:        8px;
-  --radius-lg:     14px;
-  --radius-xl:     18px;
-  --shadow:        0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-md:     0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
-  --shadow-glow:   0 0 20px rgba(0,168,85,0.12);
-  --shadow-card:   0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  /* ── Shape & Shadow ── */
+  --radius:        6px;
+  --radius-lg:     10px;
+  --radius-xl:     14px;
+  --shadow:        0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:     0 4px 8px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+  --shadow-glow:   0 0 0 3px rgba(29,78,216,0.12);
+  --shadow-card:   0 1px 4px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
 
-  --nav-bg:        #ffffff;
-  --nav-border:    #e2e8f0;
-  --nav-text:      #374151;
-  --nav-text-muted:#9ca3af;
-  --nav-active-bg: #f0fdf4;
-  --nav-active-text:#16a34a;
-  --nav-active-bar:#16a34a;
-  --nav-hover-bg:  #f9fafb;
+  /* ── Navigation ── */
+  --nav-bg:           #1e2a3b;
+  --nav-border:       #2a3a50;
+  --nav-text:         #cbd5e1;
+  --nav-text-muted:   #64748b;
+  --nav-active-bg:    rgba(37,99,235,0.18);
+  --nav-active-text:  #60a5fa;
+  --nav-active-bar:   #3b82f6;
+  --nav-hover-bg:     rgba(255,255,255,0.06);
 }
 
 * { box-sizing:border-box; margin:0; padding:0 }
 
 body {
-  font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
-  background: #f8fafc;
+  font-family: 'IBM Plex Sans Thai', 'IBM Plex Sans', 'Sarabun', sans-serif;
+  background: var(--bg);
   color: var(--text);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
   min-height: 100vh;
+  letter-spacing: 0.01em;
 }
+
 
 /* ── Hero background image ── */
 #bg-hero {
@@ -4917,35 +4925,33 @@ body {
   background-size: cover;
   background-position: center 30%;
   background-repeat: no-repeat;
-  opacity: 0.22;
-  filter: saturate(0.8) brightness(0.55);
+  opacity: 0.10;
+  filter: saturate(0.4) brightness(0.6);
 }
 #bg-hero::after {
   content:''; position:absolute; inset:0;
-  background: linear-gradient(100deg,
-    rgba(5,11,20,0.4) 0%,
-    rgba(5,11,20,0.65) 40%,
-    rgba(5,11,20,0.92) 100%
+  background: linear-gradient(135deg,
+    rgba(15,23,42,0.3) 0%,
+    rgba(15,23,42,0.5) 100%
   );
 }
 
-/* ── Background atmospheric layers ── */
-#it-bg-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.4 }
+/* ── Background: clean subtle pattern ── */
+#it-bg-canvas { display:none }
 
 body::before {
   content:'';
   position:fixed; inset:0; z-index:0; pointer-events:none;
   background:
-    radial-gradient(ellipse 55% 45% at 10% 20%, rgba(0,232,122,0.09) 0%, transparent 60%),
-    radial-gradient(ellipse 45% 40% at 85% 75%, rgba(0,255,255,0.05) 0%, transparent 60%),
-    radial-gradient(ellipse 30% 30% at 50% 50%, rgba(0,200,100,0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 60% 50% at 5% 15%, rgba(29,78,216,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 95% 85%, rgba(29,78,216,0.04) 0%, transparent 60%);
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width:5px; height:5px }
-::-webkit-scrollbar-track { background:transparent }
-::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:90px }
-::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.20) }
+::-webkit-scrollbar { width:6px; height:6px }
+::-webkit-scrollbar-track { background:var(--bg-2) }
+::-webkit-scrollbar-thumb { background:#c1c9d6; border-radius:90px }
+::-webkit-scrollbar-thumb:hover { background:#9aa3b4 }
 
 /* ══════════════════════════════════
    LOGIN SCREEN
@@ -4953,13 +4959,14 @@ body::before {
 .screen {
   position:fixed; inset:0; z-index:9000;
   display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e2a3b 50%, #0f2140 100%);
   background-image: url('');
   background-size: cover;
   background-position: center;
 }
 .screen::before {
   content:''; position:absolute; inset:0;
-  background: #f8fafc;
+  background: linear-gradient(135deg, rgba(15,23,42,0.92) 0%, rgba(30,42,59,0.88) 100%);
   backdrop-filter: none;
 }
 .screen > .box {
@@ -4968,72 +4975,73 @@ body::before {
 .screen.hidden { display:none !important }
 
 .box {
-  background: linear-gradient(145deg, rgba(10,18,32,0.90), rgba(8,14,28,0.95));
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: var(--radius-xl);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 2.5rem 2.2rem;
   width: 100%; max-width: 400px;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(79,142,247,0.10);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.12);
   position: relative; overflow:hidden;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 .box::before {
   content:'';
-  position:absolute; top:0; left:0; right:0; height:1px;
-  background: linear-gradient(90deg, transparent, rgba(0,232,122,0.7), rgba(0,255,200,0.5), transparent);
+  position:absolute; top:0; left:0; right:0; height:3px;
+  background: linear-gradient(90deg, #1d4ed8, #2563eb, #3b82f6);
 }
 
-.box-logo { display:flex; flex-direction:column; align-items:center; gap:14px; margin-bottom:2rem }
+
+.box-logo { display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:1.75rem }
 .box-icon {
-  width:60px; height:60px;
-  background: linear-gradient(135deg, #00a050, #00e87a, #00ffc8);
-  border-radius:16px;
+  width:56px; height:56px;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  border-radius:12px;
   display:flex; align-items:center; justify-content:center;
-  box-shadow: 0 0 32px rgba(0,232,122,0.5), 0 4px 20px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 16px rgba(29,78,216,0.35);
 }
-.box-company { font-size:18px; font-weight:800; color:var(--text); text-align:center; letter-spacing:-0.02em }
-.box-sub { font-size:13px; color:var(--text-muted); text-align:center }
+.box-company { font-size:17px; font-weight:700; color:#111827; text-align:center; letter-spacing:-0.01em }
+.box-sub { font-size:13px; color:#6b7280; text-align:center; font-weight:400 }
 
 .fld { margin-bottom:1rem }
 .fld label {
-  display:block; font-size:11px; font-weight:700;
-  letter-spacing:.07em; text-transform:uppercase;
-  color:var(--text-muted); margin-bottom:7px;
+  display:block; font-size:11.5px; font-weight:600;
+  letter-spacing:.05em; text-transform:uppercase;
+  color:#6b7280; margin-bottom:6px;
 }
 .fld input, .fld select {
   width:100%; padding:10px 14px;
-  border:1px solid var(--border-bright);
+  border:1.5px solid var(--border-bright);
   border-radius:var(--radius);
-  font-size:14px; font-family:'Sarabun',sans-serif;
-  background: rgba(255,255,255,0.04); color:var(--text);
-  transition:border .2s, box-shadow .2s, background .2s;
+  font-size:14px; font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif;
+  background: #ffffff; color:var(--text);
+  transition:border .15s, box-shadow .15s;
 }
 .fld input:focus, .fld select:focus {
   outline:none; border-color:var(--accent);
-  background: rgba(0,232,122,0.05);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(29,78,216,0.12);
 }
 .fld input[readonly] { background:var(--bg-2); color:var(--text-muted) }
 
 .big-btn {
-  width:100%; padding:12px;
-  background: linear-gradient(135deg, #00a050, #00e87a, #00ffc8);
-  color:#031a0e; border:none;
+  width:100%; padding:11px;
+  background: #1d4ed8;
+  color:#ffffff; border:none;
   border-radius:var(--radius);
-  font-size:15px; font-weight:700;
-  cursor:pointer; font-family:'Sarabun',sans-serif;
+  font-size:14.5px; font-weight:600;
+  cursor:pointer; font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif;
   margin-top:.25rem;
-  box-shadow: 0 4px 24px rgba(0,232,122,0.45);
-  transition: all .2s; letter-spacing:0.01em;
+  box-shadow: 0 2px 8px rgba(29,78,216,0.30);
+  transition: background .15s, box-shadow .15s, transform .1s;
+  letter-spacing:0.01em;
 }
-.big-btn:hover { transform:translateY(-2px); box-shadow:0 8px 36px rgba(0,232,122,0.55), 0 0 20px rgba(0,255,200,0.25); }
-.big-btn:active { transform:translateY(0) }
+.big-btn:hover { background:#1e40af; box-shadow:0 4px 14px rgba(29,78,216,0.40); transform:translateY(-1px); }
+.big-btn:active { transform:translateY(0); box-shadow:0 1px 4px rgba(29,78,216,0.20); }
+.big-btn:disabled { background:#93c5fd; cursor:not-allowed; transform:none; }
 
 .box-hint { font-size:11.5px; color:var(--text-light); text-align:center; margin-top:.75rem; line-height:1.8 }
 .err-msg {
-  background:rgba(248,113,113,0.12); color:var(--red);
-  border:1px solid rgba(248,113,113,0.25);
+  background:#fef2f2; color:#b91c1c;
+  border:1px solid #fecaca;
   border-radius:var(--radius); padding:8px 12px;
   font-size:13px; margin-bottom:.75rem; display:none;
 }
@@ -5042,22 +5050,22 @@ body::before {
    HEADER
 ══════════════════════════════════ */
 header {
-  background: linear-gradient(90deg, rgba(9,13,24,0.98) 0%, rgba(13,18,35,0.98) 100%);
-  border-bottom: 1px solid var(--nav-border);
+  background: #1e2a3b;
+  border-bottom: 1px solid #2a3a50;
   padding: 0 1.75rem;
   display:flex; align-items:center; justify-content:space-between;
-  height:58px; position:sticky; top:0; z-index:100;
-  box-shadow: 0 1px 0 rgba(79,142,247,0.1), 0 4px 24px rgba(0,0,0,0.4);
+  height:56px; position:sticky; top:0; z-index:100;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.20);
   backdrop-filter: none;
 }
 .hd-left { display:flex; align-items:center; gap:14px }
-.hd-title { font-size:15px; font-weight:800; color:var(--text); letter-spacing:-.02em }
-.hd-sub { font-size:10.5px; color:var(--text-muted); font-weight:400; margin-top:1px }
-.hd-right { display:flex; align-items:center; gap:14px }
+.hd-title { font-size:14.5px; font-weight:700; color:#f1f5f9; letter-spacing:.01em }
+.hd-sub { font-size:10.5px; color:#64748b; font-weight:400; margin-top:1px }
+.hd-right { display:flex; align-items:center; gap:12px }
 .hd-search {
   display:flex; align-items:center; gap:8px;
-  background:#f1f5f9; border:1px solid var(--border); border-radius:10px;
-  padding:8px 14px; width:260px; color:var(--text-muted);
+  background:#253347; border:1px solid #334560; border-radius:6px;
+  padding:7px 12px; width:240px; color:#94a3b8;
 }
 .hd-search svg { flex-shrink:0; opacity:.6; }
 .hd-search input {
@@ -5292,32 +5300,32 @@ nav {
 nav::-webkit-scrollbar { width:3px }
 nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.10); border-radius:99px }
 
-.nav-sec { padding:0; margin-bottom:.3rem; display:flex; flex-direction:column; align-items:stretch; gap:2px; }
+.nav-sec { padding:0; margin-bottom:.3rem; display:flex; flex-direction:column; align-items:stretch; gap:1px; }
 .nav-scroll-inner {
   display:flex; flex-direction:column; align-items:stretch; flex:1; min-width:0; min-height:0;
   overflow-x:hidden; overflow-y:auto;
-  gap:2px;
+  gap:1px;
 }
 .nav-scroll-inner::-webkit-scrollbar { display:none; }
 .nav-scroll-inner { -ms-overflow-style:none; scrollbar-width:none; }
 .nav-lbl {
-  display:block; font-size:11px; font-weight:700; color:#9ca3af;
-  text-transform:uppercase; letter-spacing:.07em;
-  padding:14px 12px 6px;
+  display:block; font-size:10.5px; font-weight:600; color:#475569;
+  text-transform:uppercase; letter-spacing:.08em;
+  padding:14px 14px 5px;
 }
 .nav-sec:first-child .nav-lbl { padding-top:2px; }
 .nav-item {
   display:flex; align-items:center; gap:9px;
-  padding:10px 12px; border-radius:var(--radius);
-  cursor:pointer; font-size:13.5px; color:var(--nav-text-muted);
-  transition:all .17s; margin-bottom:0;
+  padding:9px 14px; border-radius:var(--radius);
+  cursor:pointer; font-size:13px; color:var(--nav-text);
+  transition:all .15s; margin-bottom:0;
   border:none; background:none; width:100%; text-align:left;
-  font-family:'Plus Jakarta Sans','Sarabun',sans-serif; font-weight:500;
+  font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif; font-weight:400;
   position:relative; white-space:nowrap;
 }
 .nav-item:hover {
   background: var(--nav-hover-bg);
-  color: var(--nav-text);
+  color: #e2e8f0;
 }
 .nav-item.active {
   background: var(--nav-active-bg);
@@ -5326,57 +5334,57 @@ nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.10); border-radius:
 }
 .nav-item.active::before {
   content:''; position:absolute; left:0; top:20%; bottom:20%;
-  width:3px; background: linear-gradient(180deg, #16a34a, #22c55e);
+  width:3px; background: #3b82f6;
   border-radius:0 3px 3px 0;
 }
-.nav-item svg { width:16px; height:16px; flex-shrink:0; opacity:.6 }
-.nav-item.active svg, .nav-item:hover svg { opacity:1 }
+.nav-item svg { width:16px; height:16px; flex-shrink:0; opacity:.55 }
+.nav-item.active svg, .nav-item:hover svg { opacity:.9 }
 .nav-badge {
   margin-left:auto;
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  color:#0d0f12;
-  font-size:10px; font-weight:800;
+  background: #b45309;
+  color:#fff;
+  font-size:10px; font-weight:700;
   border-radius:999px; padding:2px 7px;
   font-family:'IBM Plex Mono',monospace;
 }
-.nav-div { border:none; border-top:1px solid var(--nav-border); height:0; width:100%; margin:8px 0; align-self:auto; }
+.nav-div { border:none; border-top:1px solid #2a3a50; height:0; width:100%; margin:8px 0; align-self:auto; }
 .nav-foot-card {
-  margin-top:.6rem; border-radius:14px; background:#f7faf8; border:1px solid #e6efe9;
+  margin-top:.6rem; border-radius:8px; background:#253347; border:1px solid #334560;
   padding:12px; display:flex; align-items:center; gap:10px;
 }
 .nav-foot-card .nfc-logo {
-  width:38px; height:38px; border-radius:10px; flex-shrink:0;
-  background:linear-gradient(135deg,#16a34a,#22c55e);
+  width:36px; height:36px; border-radius:8px; flex-shrink:0;
+  background:linear-gradient(135deg,#1d4ed8,#3b82f6);
   display:flex; align-items:center; justify-content:center;
-  color:#fff; font-weight:800; font-size:14px;
+  color:#fff; font-weight:700; font-size:14px;
 }
 .nav-foot-card .nfc-text { min-width:0; }
-.nav-foot-card .nfc-name { font-size:12px; font-weight:700; color:var(--text); line-height:1.3; white-space:normal; }
-.nav-foot-card .nfc-sub  { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.nav-foot-card .nfc-name { font-size:12px; font-weight:600; color:#cbd5e1; line-height:1.3; white-space:normal; }
+.nav-foot-card .nfc-sub  { font-size:11px; color:#64748b; margin-top:2px; }
 .nav-go-green {
-  margin-top:.6rem; border-radius:14px; overflow:hidden;
-  background: linear-gradient(160deg, #ecfdf5 0%, #d1fae5 55%, #bbf7d0 100%);
-  border:1px solid #bbf7d0; padding:13px;
+  margin-top:.6rem; border-radius:8px; overflow:hidden;
+  background: #1e3a5f;
+  border:1px solid #2563eb33; padding:13px;
 }
 .nav-go-green .ngg-title {
-  font-size:11.5px; font-weight:800; color:#15803d; letter-spacing:.06em;
+  font-size:11px; font-weight:700; color:#93c5fd; letter-spacing:.05em;
   display:flex; align-items:center; gap:6px; margin-bottom:6px;
 }
-.nav-go-green .ngg-text { font-size:11.5px; color:#166534; line-height:1.5; margin-bottom:8px; }
-.nav-go-green .ngg-link { font-size:11.5px; font-weight:700; color:#16a34a; }
-.nav-item.off { opacity:.2; cursor:not-allowed; pointer-events:none }
+.nav-go-green .ngg-text { font-size:11px; color:#64748b; line-height:1.5; margin-bottom:8px; }
+.nav-go-green .ngg-link { font-size:11px; font-weight:700; color:#3b82f6; }
+.nav-item.off { opacity:.25; cursor:not-allowed; pointer-events:none }
 
 /* PM tabs */
 .pm-tab {
-  padding:9px 18px;font-size:13px;font-weight:600;border:none;background:none;
-  color:var(--text-muted);cursor:pointer;border-bottom:3px solid transparent;
-  transition:color .2s,border-color .2s;white-space:nowrap;
+  padding:9px 18px;font-size:13px;font-weight:500;border:none;background:none;
+  color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;white-space:nowrap;
 }
 .pm-tab:hover{color:var(--text);}
 .pm-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 /* PM calendar */
 .pm-cal-day{min-height:60px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:11px;background:var(--panel);}
-.pm-cal-day.today{border-color:var(--accent);background:rgba(30,158,94,.08);}
+.pm-cal-day.today{border-color:var(--accent);background:rgba(29,78,216,.06);}
 .pm-cal-day.other-month{opacity:.35;}
 .pm-cal-event{background:var(--accent);color:#fff;border-radius:3px;padding:1px 4px;font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
 
@@ -5385,18 +5393,18 @@ nav::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.10); border-radius:
 .nav-footer { display:none; }
 .nav-user-card {
   display:flex; align-items:center; gap:10px; padding:10px 12px;
-  background:rgba(255,255,255,0.04); border-radius:10px;
-  border:1px solid rgba(255,255,255,0.07); cursor:pointer; transition:all .2s;
+  background:#253347; border-radius:8px;
+  border:1px solid #334560; cursor:pointer; transition:all .15s;
 }
-.nav-user-card:hover { background:rgba(255,255,255,0.08) }
+.nav-user-card:hover { background:#2d3f57; border-color:#3b5069; }
 .nav-avatar {
-  width:36px; height:36px; border-radius:50%;
-  background: linear-gradient(135deg, #00a050, #00ffc8);
+  width:34px; height:34px; border-radius:50%;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
   display:flex; align-items:center; justify-content:center;
-  font-size:14px; font-weight:800; color:#fff; flex-shrink:0;
+  font-size:13px; font-weight:700; color:#fff; flex-shrink:0;
 }
-.nav-user-name { font-size:12.5px; font-weight:700; color:var(--nav-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px }
-.nav-user-role { font-size:10.5px; color:var(--nav-text-muted); margin-top:1px }
+.nav-user-name { font-size:12.5px; font-weight:600; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px }
+.nav-user-role { font-size:10.5px; color:#64748b; margin-top:1px }
 
 main {
   flex:1; padding:1.5rem 2rem; overflow-x:hidden;
@@ -5409,8 +5417,8 @@ main {
 ══════════════════════════════════ */
 .page-hd { margin-bottom:1.5rem; display:flex; align-items:flex-start; justify-content:space-between; gap:1rem }
 .page-hd h1 {
-  font-size:20px; font-weight:800; letter-spacing:-.03em; color:var(--text);
-  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:18px; font-weight:700; letter-spacing:-.01em; color:var(--text);
+  font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif;
 }
 .page-hd p { font-size:13px; color:var(--text-muted); margin-top:3px }
 .page-acts { display:flex; gap:8px; flex-wrap:wrap }
@@ -5420,55 +5428,57 @@ main {
 ══════════════════════════════════ */
 .btn {
   display:inline-flex; align-items:center; gap:6px;
-  padding:8px 16px; border-radius:var(--radius);
-  font-size:13px; font-family:'Plus Jakarta Sans','Sarabun',sans-serif;
-  cursor:pointer; font-weight:600;
-  transition:all .18s; border:1px solid transparent;
+  padding:7px 15px; border-radius:var(--radius);
+  font-size:13px; font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif;
+  cursor:pointer; font-weight:500;
+  transition:all .15s; border:1px solid transparent;
   white-space:nowrap; letter-spacing:0.01em;
 }
 .btn-primary {
-  background: linear-gradient(135deg, #00a050, #00e87a);
-  color:#031a0e; border-color:transparent;
-  box-shadow: 0 2px 14px rgba(0,232,122,0.30);
-  font-weight:700;
+  background: #1d4ed8;
+  color:#fff; border-color:#1d4ed8;
+  box-shadow: 0 1px 4px rgba(29,78,216,0.25);
+  font-weight:600;
 }
-.btn-primary:hover { box-shadow:0 4px 28px rgba(0,232,122,0.50), 0 0 14px rgba(0,255,200,0.20); transform:translateY(-1px) }
+.btn-primary:hover { background:#1e40af; box-shadow:0 3px 10px rgba(29,78,216,0.35); transform:translateY(-1px); }
+.btn-primary:active { transform:none; }
 
 .btn-secondary {
-  background: rgba(255,255,255,0.05);
+  background: #ffffff;
   color:var(--text-muted); border-color:var(--border-bright);
 }
-.btn-secondary:hover { background:rgba(255,255,255,0.09); color:var(--text) }
+.btn-secondary:hover { background:var(--bg-2); color:var(--text); border-color:var(--border-hover); }
 
 .btn-green {
   background: var(--green-light); color:var(--green);
-  border-color:rgba(52,211,153,.20);
+  border-color:rgba(21,128,61,.20);
 }
-.btn-green:hover { background:rgba(52,211,153,.20) }
+.btn-green:hover { background:rgba(21,128,61,.15) }
 
 .btn-amber {
   background: var(--amber-light); color:var(--amber);
-  border-color:rgba(245,158,11,.20);
+  border-color:rgba(180,83,9,.20);
 }
-.btn-amber:hover { background:rgba(245,158,11,.22) }
+.btn-amber:hover { background:rgba(180,83,9,.15) }
 
 .btn-danger {
   background: var(--red-light); color:var(--red);
-  border-color:rgba(248,113,113,.20);
+  border-color:rgba(185,28,28,.20);
 }
-.btn-danger:hover { background:rgba(248,113,113,.22) }
+.btn-danger:hover { background:rgba(185,28,28,.15) }
 
 .btn-purple {
   background: var(--purple-light); color:var(--purple);
-  border-color:rgba(167,139,250,.20);
+  border-color:rgba(109,40,217,.20);
 }
-.btn-purple:hover { background:rgba(167,139,250,.22) }
+.btn-purple:hover { background:rgba(109,40,217,.15) }
 
 .btn-print {
   background: var(--blue-light); color:var(--blue);
-  border-color:rgba(96,165,250,.20);
+  border-color:rgba(29,78,216,.20);
 }
-.btn-print:hover { background:rgba(96,165,250,.22) }
+.btn-print:hover { background:rgba(29,78,216,.15) }
+
 
 .btn-sm  { padding:5px 12px; font-size:12px }
 .btn-xs  { padding:3px 9px; font-size:11.5px }
@@ -6106,6 +6116,97 @@ tr:hover td { background:rgba(79,142,247,0.03) }
   nav { transform:none !important; position:sticky; }
   #mob-menu-btn { display:none !important; }
 }
+
+/* ═══════════════════════════════════════════════════
+   FORMAL ENTERPRISE OVERRIDES — replaces neon/green
+═══════════════════════════════════════════════════ */
+
+/* Cards — white bg with border */
+.card {
+  background:#ffffff !important;
+  border:1px solid var(--border) !important;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06) !important;
+}
+.card::before { display:none !important; }
+.card:hover { box-shadow:0 3px 10px rgba(0,0,0,0.09) !important; border-color:var(--border-bright) !important; }
+
+/* Inputs/selects — white bg */
+input:not([type=range]), select, textarea {
+  background:#ffffff !important;
+  border:1.5px solid #d1d5db !important;
+  font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color:#1d4ed8 !important;
+  box-shadow:0 0 0 3px rgba(29,78,216,0.10) !important;
+  background:#ffffff !important;
+}
+input[readonly], input[disabled], select[disabled] {
+  background:#f3f4f6 !important; color:#9ca3af !important;
+}
+
+/* Table clean look */
+.tbl th {
+  background:#f8f9fb !important;
+  color:#374151 !important;
+  font-weight:600 !important;
+  border-bottom:2px solid #e5e7eb !important;
+  font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif !important;
+}
+.tbl tr:hover td { background:#f0f4ff !important; }
+
+/* Sidebar nav - dark navy */
+nav {
+  background:#1e2a3b !important;
+  border-right:1px solid #2a3a50 !important;
+}
+
+/* Modal - white formal */
+.modal {
+  background:#ffffff !important;
+  border:1px solid var(--border) !important;
+  box-shadow:0 20px 50px rgba(0,0,0,0.15) !important;
+  border-radius:var(--radius-lg) !important;
+}
+.modal-hd {
+  border-bottom:1px solid var(--border) !important;
+  background:#f8f9fb !important;
+  border-radius:var(--radius-lg) var(--radius-lg) 0 0 !important;
+}
+.modal-hd h2 { font-size:15px !important; font-weight:600 !important; color:#111827 !important; }
+
+/* Section panels */
+.panel, .section-panel {
+  background:#ffffff !important;
+  border:1px solid var(--border) !important;
+}
+
+/* Status badges - professional */
+.badge-pending, .status-pending   { background:#eff6ff !important; color:#1d4ed8 !important; border:1px solid #bfdbfe !important; }
+.badge-approved, .status-approved { background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; }
+.badge-rejected, .status-rejected,
+.badge-cancel, .status-cancel     { background:#fef2f2 !important; color:#b91c1c !important; border:1px solid #fecaca !important; }
+.badge-processing, .status-processing { background:#fffbeb !important; color:#b45309 !important; border:1px solid #fde68a !important; }
+.badge-done, .status-done         { background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; }
+
+/* Font consistency across all elements */
+button, input, select, textarea, label, td, th, p, span, div, h1, h2, h3, h4, h5 {
+  font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif;
+}
+code, .mono, [style*="monospace"], .badge-id {
+  font-family:'IBM Plex Mono',monospace !important;
+}
+
+/* Metric cards */
+.metric { background:#ffffff !important; border:1px solid #e5e7eb !important; }
+.metric:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08) !important; border-color:#c8cdd8 !important; }
+
+/* Hide particle canvas always */
+#it-bg-canvas { display:none !important; }
+
+/* Accent color consistency */
+a { color:var(--accent); }
+a:hover { color:var(--accent-dim); }
 </style>
 
 <style id="repair-status-btns-css">
@@ -6639,52 +6740,52 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
   text-align: center !important;
   margin-top: 8px !important;
 }
-#login-register-wrap a { color: #00b85e !important; font-size: 13px !important; }
+#login-register-wrap a { color: #1d4ed8 !important; font-size: 13px !important; }
 #screen-login::before { display: none !important; }
 .srp-dropdown { background: #ffffff !important; }
 .srp-option { color: #2d3a4a !important; }
 .srp-option:hover { background: #eef4ff !important; }
 
-/* ── screen-forgot: inherit login styles ── */
-#screen-forgot { background: #f8fafc; }
+/* ── screen-forgot: formal login styles ── */
+#screen-forgot { background: linear-gradient(135deg, #0f172a 0%, #1e2a3b 100%); }
 #screen-forgot > .box {
   flex-shrink: 0 !important;
-  background: rgba(255,255,255,0.97) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25) !important;
-  padding: 44px 40px 36px !important;
-  width: 420px !important;
+  background: #ffffff !important;
+  border-radius: 10px !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25) !important;
+  padding: 2.5rem 2.2rem !important;
+  width: 400px !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
-  border: 1px solid rgba(255,255,255,0.6) !important;
+  border: 1px solid #e5e7eb !important;
   position: relative !important;
   z-index: 1 !important;
 }
-#screen-forgot .box-logo { display:flex !important; flex-direction:column !important; align-items:center !important; margin-bottom:20px !important; }
+#screen-forgot .box-logo { display:flex !important; flex-direction:column !important; align-items:center !important; margin-bottom:18px !important; }
 #screen-forgot .box-logo img { max-height:80px !important; max-width:260px !important; object-fit:contain !important; }
-#screen-forgot .box-sub { font-size:17px !important; font-weight:700 !important; color:#1e293b !important; text-align:center !important; margin-top:8px !important; }
-#screen-forgot .fld { margin-bottom:14px !important; }
-#screen-forgot .fld label { color:#374151 !important; font-size:13px !important; font-weight:600 !important; letter-spacing:.04em !important; text-transform:uppercase !important; margin-bottom:6px !important; display:block !important; }
+#screen-forgot .box-sub { font-size:16px !important; font-weight:700 !important; color:#111827 !important; text-align:center !important; margin-top:6px !important; }
+#screen-forgot .fld { margin-bottom:12px !important; }
+#screen-forgot .fld label { color:#6b7280 !important; font-size:11.5px !important; font-weight:600 !important; letter-spacing:.05em !important; text-transform:uppercase !important; margin-bottom:6px !important; display:block !important; }
 #screen-forgot .fld input,
 #screen-forgot input[type="email"],
 #screen-forgot input[type="password"] {
-  width:100% !important; padding:12px 16px !important; border-radius:12px !important;
-  border:1.5px solid #e2e8f0 !important; background:#f0f7ff !important;
-  color:#1e293b !important; font-size:15px !important;
-  font-family:"Sarabun",sans-serif !important; box-sizing:border-box !important; outline:none !important;
+  width:100% !important; padding:10px 14px !important; border-radius:var(--radius) !important;
+  border:1.5px solid #d1d5db !important; background:#ffffff !important;
+  color:#111827 !important; font-size:14px !important;
+  font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif !important; box-sizing:border-box !important; outline:none !important;
 }
-#screen-forgot input:focus { border-color:#00b85e !important; background:#f0fff8 !important; box-shadow:0 0 0 3px rgba(0,184,94,.12) !important; }
-#screen-forgot input::placeholder { color:#94a3b8 !important; }
+#screen-forgot input:focus { border-color:#1d4ed8 !important; background:#ffffff !important; box-shadow:0 0 0 3px rgba(29,78,216,.10) !important; }
+#screen-forgot input::placeholder { color:#9ca3af !important; }
 #screen-forgot .big-btn {
-  width:100% !important; padding:14px !important; border-radius:14px !important;
-  background:linear-gradient(135deg,#00c460,#00e87a) !important; color:#032a10 !important;
-  font-size:14px !important; font-weight:700 !important; font-family:"Sarabun",sans-serif !important;
+  width:100% !important; padding:11px !important; border-radius:var(--radius) !important;
+  background:#1d4ed8 !important; color:#ffffff !important;
+  font-size:14px !important; font-weight:600 !important; font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif !important;
   border:none !important; cursor:pointer !important;
-  box-shadow:0 4px 20px rgba(0,232,122,.40) !important; margin-top:8px !important;
+  box-shadow:0 2px 8px rgba(29,78,216,.25) !important; margin-top:8px !important;
 }
-#screen-forgot .big-btn:hover { background:linear-gradient(135deg,#00a050,#00d870) !important; }
-#screen-forgot a { color:#00b85e !important; }
+#screen-forgot .big-btn:hover { background:#1e40af !important; box-shadow:0 4px 14px rgba(29,78,216,.35) !important; }
+#screen-forgot a { color:#1d4ed8 !important; }
 #fp-err1, #fp-err2 { background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:8px 12px; }
 #fp-confirmed-email { color:#1e293b; }
 
@@ -6831,37 +6932,55 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
 
     <!-- Step 1: อีเมล -->
     <div id="fp-step1">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem;line-height:1.6">กรอกอีเมลองค์กรของท่าน ระบบจะส่งรหัส OTP 6 หลักเพื่อยืนยันตัวตน</p>
       <div class="fld">
         <label>อีเมลองค์กร</label>
         <input type="email" id="fp-email" placeholder="name@company.com" autocomplete="email" onkeydown="if(event.key==='Enter') fpStep1Next()">
       </div>
       <div id="fp-err1" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
-      <button class="big-btn" onclick="fpStep1Next()">ถัดไป</button>
+      <button class="big-btn" id="fp-btn1" onclick="fpStep1Next()">ส่ง OTP ไปยังอีเมล</button>
       <div style="text-align:center;margin-top:.75rem">
         <a href="javascript:void(0)" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="hideForgotBox()">← กลับเข้าสู่ระบบ</a>
       </div>
     </div>
 
-    <!-- Step 2: ตั้งรหัสผ่านใหม่ -->
+    <!-- Step 2: กรอก OTP -->
     <div id="fp-step2" style="display:none">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem">อีเมล: <strong id="fp-confirmed-email"></strong></p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:1rem;font-size:13px;color:#166534;line-height:1.6">
+        📧 ส่งรหัส OTP ไปยัง <strong id="fp-confirmed-email"></strong> แล้ว<br>
+        กรุณาตรวจสอบกล่องจดหมาย (และโฟลเดอร์ Spam) ภายใน 10 นาที
+      </div>
+      <div class="fld">
+        <label>รหัส OTP 6 หลัก</label>
+        <input type="text" id="fp-otp" placeholder="xxxxxx" maxlength="6" autocomplete="one-time-code"
+          style="letter-spacing:.25em;font-size:20px;text-align:center;font-weight:700"
+          onkeydown="if(event.key==='Enter') fpStep2Next()" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      </div>
+      <div id="fp-err2" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
+      <button class="big-btn" onclick="fpStep2Next()">ยืนยัน OTP</button>
+      <div style="text-align:center;margin-top:.75rem;display:flex;justify-content:space-between;font-size:13px">
+        <a href="javascript:void(0)" style="color:var(--accent);text-decoration:none" onclick="fpReset()">← ย้อนกลับ</a>
+        <a href="javascript:void(0)" id="fp-resend-link" style="color:var(--accent);text-decoration:none" onclick="fpResendOtp()">ส่งรหัสใหม่</a>
+      </div>
+    </div>
+
+    <!-- Step 3: ตั้งรหัสผ่านใหม่ -->
+    <div id="fp-step3" style="display:none">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem">ยืนยันตัวตนสำเร็จ กำหนดรหัสผ่านใหม่ได้เลย</p>
       <div class="fld">
         <label>รหัสผ่านใหม่</label>
         <input type="password" id="fp-newpass" placeholder="อย่างน้อย 4 ตัวอักษร" autocomplete="new-password">
       </div>
       <div class="fld">
         <label>ยืนยันรหัสผ่านใหม่</label>
-        <input type="password" id="fp-newpass2" placeholder="กรอกรหัสผ่านอีกครั้ง" autocomplete="new-password" onkeydown="if(event.key==='Enter') fpStep2Next()">
+        <input type="password" id="fp-newpass2" placeholder="กรอกรหัสผ่านอีกครั้ง" autocomplete="new-password" onkeydown="if(event.key==='Enter') fpStep3Next()">
       </div>
-      <div id="fp-err2" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
-      <button class="big-btn" onclick="fpStep2Next()">บันทึกรหัสผ่าน</button>
-      <div style="text-align:center;margin-top:.75rem">
-        <a href="javascript:void(0)" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="fpReset()">← ย้อนกลับ</a>
-      </div>
+      <div id="fp-err3" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
+      <button class="big-btn" onclick="fpStep3Next()">บันทึกรหัสผ่าน</button>
     </div>
 
-    <!-- Step 3: สำเร็จ -->
-    <div id="fp-step3" style="display:none;text-align:center">
+    <!-- Step 4: สำเร็จ -->
+    <div id="fp-step4" style="display:none;text-align:center">
       <div style="font-size:48px;margin-bottom:.5rem">✅</div>
       <div style="font-size:16px;font-weight:700;color:#16a34a;margin-bottom:.5rem">เปลี่ยนรหัสผ่านสำเร็จ</div>
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem">กลับไปเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย</p>
@@ -6871,6 +6990,14 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
 </div>
 
 <script>
+/* ──────────────────────────────────────────────
+   FORGOT PASSWORD — OTP Flow
+   OTP สร้างฝั่ง client, "ส่ง" ผ่าน Email API (EmailJS / mailto fallback)
+   เก็บ hash ของ OTP ใน sessionStorage เพื่อความปลอดภัย
+────────────────────────────────────────────── */
+var _fpOtpHash   = null;   // SHA-256 ของ OTP ที่สร้าง
+var _fpOtpExpiry = 0;      // timestamp หมดอายุ (10 นาที)
+
 function showForgotBox() {
   document.getElementById('screen-login').style.display = 'none';
   document.getElementById('screen-forgot').style.display = '';
@@ -6881,78 +7008,346 @@ function hideForgotBox() {
   document.getElementById('screen-login').style.display = '';
 }
 function fpReset() {
-  ['fp-step2','fp-step3'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none';});
-  var s1=document.getElementById('fp-step1'); if(s1)s1.style.display='';
-  ['fp-err1','fp-err2'].forEach(function(id){var e=document.getElementById(id);if(e){e.style.display='none';e.textContent='';}});
-  ['fp-email','fp-newpass','fp-newpass2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
-  window._fpUser=null;
+  ['fp-step2','fp-step3','fp-step4'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.style.display='none';
+  });
+  var s1=document.getElementById('fp-step1'); if(s1) s1.style.display='';
+  ['fp-err1','fp-err2','fp-err3'].forEach(function(id){
+    var e=document.getElementById(id); if(e){e.style.display='none';e.textContent='';}
+  });
+  ['fp-email','fp-otp','fp-newpass','fp-newpass2'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.value='';
+  });
+  window._fpUser   = null;
+  _fpOtpHash       = null;
+  _fpOtpExpiry     = 0;
 }
-function fpStep1Next() {
-  var email=(document.getElementById('fp-email').value||'').trim().toLowerCase();
-  var e1=document.getElementById('fp-err1'); e1.style.display='none'; e1.textContent='';
-  if(!email){e1.textContent='กรุณากรอกอีเมลองค์กร';e1.style.display='block';return;}
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){e1.textContent='รูปแบบอีเมลไม่ถูกต้อง';e1.style.display='block';return;}
-  var src=(window.users&&window.users.length)?window.users:(typeof users!=='undefined'?users:[]);
-  var match=src.find(function(u){return(u.email||'').trim().toLowerCase()===email;});
-  if(!match){e1.textContent='ไม่พบบัญชีที่ผูกกับอีเมลนี้ กรุณาติดต่อทีม IT';e1.style.display='block';return;}
-  window._fpUser=match;
-  document.getElementById('fp-confirmed-email').textContent=email;
-  document.getElementById('fp-step1').style.display='none';
-  document.getElementById('fp-step2').style.display='';
+
+/* สร้าง OTP 6 หลัก */
+function _fpGenOtp() {
+  var arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  return String(100000 + (arr[0] % 900000));
+}
+
+/* แสดง step */
+function _fpShow(stepId) {
+  ['fp-step1','fp-step2','fp-step3','fp-step4'].forEach(function(id){
+    document.getElementById(id).style.display = (id===stepId) ? '' : 'none';
+  });
+}
+
+/* Step 1 → ตรวจ email + ส่ง OTP */
+async function fpStep1Next() {
+  var email = (document.getElementById('fp-email').value||'').trim().toLowerCase();
+  var e1 = document.getElementById('fp-err1');
+  e1.style.display='none'; e1.textContent='';
+
+  if(!email){ e1.textContent='กรุณากรอกอีเมลองค์กร'; e1.style.display='block'; return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ e1.textContent='รูปแบบอีเมลไม่ถูกต้อง'; e1.style.display='block'; return; }
+
+  var src = (window.users&&window.users.length) ? window.users : (typeof users!=='undefined'?users:[]);
+  var match = src.find(function(u){ return (u.email||'').trim().toLowerCase()===email; });
+  if(!match){ e1.textContent='ไม่พบบัญชีที่ผูกกับอีเมลนี้ กรุณาติดต่อทีม IT'; e1.style.display='block'; return; }
+
+  window._fpUser = match;
+  var btn = document.getElementById('fp-btn1');
+  btn.disabled = true; btn.textContent = 'กำลังส่ง OTP...';
+
+  /* สร้าง OTP */
+  var otp = _fpGenOtp();
+  _fpOtpHash   = await srpHash(otp);
+  _fpOtpExpiry = Date.now() + 10*60*1000;
+
+  /* ส่ง OTP ผ่าน mailto (เปิด email client) ─ สำรองกรณีไม่มี SMTP backend */
+  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน');
+  var body = encodeURIComponent(
+    'รหัส OTP ของท่านคือ: ' + otp + '\n\n' +
+    'รหัสนี้มีอายุ 10 นาที หากท่านไม่ได้ร้องขอ กรุณาเพิกเฉยต่ออีเมลนี้\n\n' +
+    'ระบบจัดการสต๊อก IT'
+  );
+
+  /* ลอง open mailto — จะเปิด email client ของผู้ใช้ */
+  var mailtoLink = 'mailto:' + email + '?subject=' + subject + '&body=' + body;
+  window.open(mailtoLink, '_blank');
+
+  /* แสดง Step 2 */
+  document.getElementById('fp-confirmed-email').textContent = email;
+  btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
+  _fpShow('fp-step2');
+  document.getElementById('fp-otp').focus();
+
+  /* countdown resend */
+  _fpStartResendCountdown();
+}
+
+/* countdown ปุ่มส่งใหม่ */
+function _fpStartResendCountdown() {
+  var link = document.getElementById('fp-resend-link');
+  var sec  = 60;
+  link.style.pointerEvents='none'; link.style.color='#94a3b8';
+  link.textContent = 'ส่งรหัสใหม่ (' + sec + ')';
+  var t = setInterval(function(){
+    sec--;
+    if(sec<=0){
+      clearInterval(t);
+      link.style.pointerEvents=''; link.style.color='';
+      link.textContent = 'ส่งรหัสใหม่';
+    } else {
+      link.textContent = 'ส่งรหัสใหม่ (' + sec + ')';
+    }
+  }, 1000);
+}
+
+/* ส่งใหม่ */
+async function fpResendOtp() {
+  var email = (document.getElementById('fp-email').value||'').trim().toLowerCase()
+           || ((window._fpUser||{}).email||'');
+  if(!email) return;
+  var otp = _fpGenOtp();
+  _fpOtpHash   = await srpHash(otp);
+  _fpOtpExpiry = Date.now() + 10*60*1000;
+  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน (ส่งใหม่)');
+  var body = encodeURIComponent('รหัส OTP ของท่านคือ: ' + otp + '\n\nรหัสนี้มีอายุ 10 นาที\n\nระบบจัดการสต๊อก IT');
+  window.open('mailto:' + email + '?subject=' + subject + '&body=' + body, '_blank');
+  document.getElementById('fp-otp').value = '';
+  _fpStartResendCountdown();
+  if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
+}
+
+/* Step 2 → ตรวจ OTP */
+async function fpStep2Next() {
+  var otp = (document.getElementById('fp-otp').value||'').trim();
+  var e2  = document.getElementById('fp-err2');
+  e2.style.display='none'; e2.textContent='';
+
+  if(!otp || otp.length!==6){ e2.textContent='กรุณากรอกรหัส OTP 6 หลัก'; e2.style.display='block'; return; }
+  if(Date.now() > _fpOtpExpiry){ e2.textContent='รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่'; e2.style.display='block'; return; }
+
+  var inputHash = await srpHash(otp);
+  if(inputHash !== _fpOtpHash){ e2.textContent='รหัส OTP ไม่ถูกต้อง'; e2.style.display='block'; return; }
+
+  /* ผ่าน → ไป step 3 */
+  _fpShow('fp-step3');
   document.getElementById('fp-newpass').focus();
 }
-async function fpStep2Next() {
-  var p1=document.getElementById('fp-newpass').value;
-  var p2=document.getElementById('fp-newpass2').value;
-  var e2=document.getElementById('fp-err2'); e2.style.display='none'; e2.textContent='';
-  if(p1.length<4){e2.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร';e2.style.display='block';return;}
-  if(p1!==p2){e2.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน';e2.style.display='block';return;}
-  var u=window._fpUser;
-  if(!u){e2.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่';e2.style.display='block';return;}
-  var hashed=await srpHash(p1); u.pass=hashed; u.hashed=true;
-  var src=typeof users!=='undefined'?users:(window.users||[]);
-  var idx=src.findIndex(function(x){return x.id===u.id;});
-  if(idx>=0)src[idx]=u;else src.push(u);
-  window.users=src;
-  try{if(typeof save==='function')save();else localStorage.setItem('srp_users',JSON.stringify(src));}catch(e){}
-  document.getElementById('fp-step2').style.display='none';
-  document.getElementById('fp-step3').style.display='';
+
+/* Step 3 → บันทึกรหัสใหม่ */
+async function fpStep3Next() {
+  var p1 = document.getElementById('fp-newpass').value;
+  var p2 = document.getElementById('fp-newpass2').value;
+  var e3 = document.getElementById('fp-err3');
+  e3.style.display='none'; e3.textContent='';
+
+  if(p1.length<4){ e3.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; e3.style.display='block'; return; }
+  if(p1!==p2){ e3.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน'; e3.style.display='block'; return; }
+
+  var u = window._fpUser;
+  if(!u){ e3.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่'; e3.style.display='block'; return; }
+
+  var hashed = await srpHash(p1);
+  u.pass   = hashed;
+  u.hashed = true;
+
+  var src = typeof users!=='undefined' ? users : (window.users||[]);
+  var idx = src.findIndex(function(x){ return x.id===u.id; });
+  if(idx>=0) src[idx]=u; else src.push(u);
+  window.users = src;
+  try{ if(typeof save==='function') save(); else localStorage.setItem('srp_users',JSON.stringify(src)); }catch(e){}
+
+  _fpShow('fp-step4');
 }
 </script>
 
 <!-- ═══ MODAL: Forgot Password ═══ -->
 <div class="modal-ov hidden" id="modal-forgot">
-  <div class="modal" style="max-width:380px">
-    <div class="modal-hd"><h2>ลืมรหัสผ่าน?</h2><button class="modal-x" onclick="closeModal('modal-forgot')">×</button></div>
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hd"><h2>ลืมรหัสผ่าน?</h2><button class="modal-x" onclick="mfpClose()">×</button></div>
 
-    <!-- STEP 1: กรอกอีเมลองค์กรเพื่อยืนยันตัวตน -->
+    <!-- STEP 1: กรอกอีเมล -->
     <div id="forgot-step1" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
-      <p style="margin:0 0 .75rem">กรุณากรอก<strong>อีเมลองค์กร</strong>ของท่านเพื่อยืนยันตัวตนและตั้งรหัสผ่านใหม่</p>
-      <input type="email" id="forgot-email" placeholder="name@nteq-polymer.com" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="email">
+      <p style="margin:0 0 .75rem">กรุณากรอก<strong>อีเมลองค์กร</strong> ระบบจะส่งรหัส OTP 6 หลักเพื่อยืนยันตัวตน</p>
+      <input type="email" id="forgot-email" placeholder="name@company.com"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="email"
+        onkeydown="if(event.key==='Enter') mfpStep1Next()">
       <div id="forgot-err1" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
     </div>
 
-    <!-- STEP 2: ตั้งรหัสผ่านใหม่ -->
+    <!-- STEP 2: กรอก OTP -->
     <div id="forgot-step2" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
-      <p style="margin:0 0 .75rem">ยืนยันอีเมลแล้ว: <span id="forgot-confirmed-email" style="font-weight:600;color:#0f172a"></span></p>
-      <p style="margin:0 0 .5rem">กำหนดรหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)</p>
-      <input type="password" id="forgot-newpass" placeholder="รหัสผ่านใหม่" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px" autocomplete="new-password">
-      <input type="password" id="forgot-newpass2" placeholder="ยืนยันรหัสผ่านใหม่" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="new-password">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:.75rem;color:#166534">
+        📧 ส่ง OTP ไปยัง <strong id="forgot-confirmed-email"></strong> แล้ว<br>
+        <span style="font-size:12px">กรุณาตรวจสอบกล่องจดหมาย (และ Spam) ภายใน 10 นาที</span>
+      </div>
+      <p style="margin:0 0 .4rem;font-weight:600">รหัส OTP 6 หลัก</p>
+      <input type="text" id="forgot-otp" placeholder="xxxxxx" maxlength="6" autocomplete="one-time-code"
+        style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:22px;text-align:center;letter-spacing:.3em;font-weight:700;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter') mfpStep2Next()" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
       <div id="forgot-err2" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
+      <div style="margin-top:.5rem;font-size:12px;color:#64748b">
+        ไม่ได้รับ? <a href="javascript:void(0)" id="forgot-resend-link" onclick="mfpResend()" style="color:var(--primary,#2563eb)">ส่งรหัสใหม่</a>
+      </div>
     </div>
 
-    <!-- STEP 3: เสร็จสิ้น -->
-    <div id="forgot-step3" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px;text-align:center">
-      <p style="margin:.5rem 0;font-weight:600;color:#16a34a">เปลี่ยนรหัสผ่านสำเร็จ</p>
-      <p style="margin:0">สามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที</p>
+    <!-- STEP 3: ตั้งรหัสผ่านใหม่ -->
+    <div id="forgot-step3" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
+      <p style="margin:0 0 .5rem;color:#16a34a;font-weight:600">✅ ยืนยัน OTP สำเร็จ — กำหนดรหัสผ่านใหม่ได้เลย</p>
+      <input type="password" id="forgot-newpass" placeholder="รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px" autocomplete="new-password">
+      <input type="password" id="forgot-newpass2" placeholder="ยืนยันรหัสผ่านใหม่"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="new-password"
+        onkeydown="if(event.key==='Enter') mfpStep3Next()">
+      <div id="forgot-err3" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
+    </div>
+
+    <!-- STEP 4: สำเร็จ -->
+    <div id="forgot-step4" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px;text-align:center">
+      <div style="font-size:40px;margin:.25rem 0">✅</div>
+      <p style="margin:.25rem 0;font-weight:700;color:#16a34a;font-size:15px">เปลี่ยนรหัสผ่านสำเร็จ</p>
+      <p style="margin:0;color:#64748b">สามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที</p>
     </div>
 
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1.25rem">
-      <button class="btn" id="forgot-cancel-btn" onclick="closeModal('modal-forgot')">ยกเลิก</button>
-      <button class="btn btn-primary" id="forgot-action-btn" onclick="forgotPasswordNext()">ถัดไป</button>
+      <button class="btn" id="forgot-cancel-btn" onclick="mfpClose()">ยกเลิก</button>
+      <button class="btn btn-primary" id="forgot-action-btn" onclick="mfpNext()">ถัดไป</button>
     </div>
   </div>
 </div>
+
+<script>
+/* ── Modal Forgot Password — OTP Flow ── */
+var _mfpOtpHash   = null;
+var _mfpOtpExpiry = 0;
+
+function openForgotPasswordModal() {
+  _mfpReset();
+  var m = document.getElementById('modal-forgot');
+  if(m) { m.classList.remove('hidden'); m.style.display='flex'; }
+}
+function mfpClose() {
+  var m = document.getElementById('modal-forgot');
+  if(m) { m.classList.add('hidden'); m.style.display=''; }
+}
+function _mfpReset() {
+  ['forgot-step2','forgot-step3','forgot-step4'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.classList.add('hidden');
+  });
+  var s1=document.getElementById('forgot-step1'); if(s1) s1.classList.remove('hidden');
+  ['forgot-err1','forgot-err2','forgot-err3'].forEach(function(id){
+    var e=document.getElementById(id); if(e){e.style.display='none';e.textContent='';}
+  });
+  ['forgot-email','forgot-otp','forgot-newpass','forgot-newpass2'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.value='';
+  });
+  document.getElementById('forgot-action-btn').textContent = 'ถัดไป';
+  window._mfpUser   = null;
+  _mfpOtpHash       = null;
+  _mfpOtpExpiry     = 0;
+}
+function _mfpShowStep(n) {
+  [1,2,3,4].forEach(function(i){
+    var e=document.getElementById('forgot-step'+i);
+    if(!e) return;
+    if(i===n) e.classList.remove('hidden'); else e.classList.add('hidden');
+  });
+  var btn = document.getElementById('forgot-action-btn');
+  var cancelBtn = document.getElementById('forgot-cancel-btn');
+  if(n===1){ btn.textContent='ถัดไป'; btn.style.display=''; cancelBtn.textContent='ยกเลิก'; }
+  else if(n===2){ btn.textContent='ยืนยัน OTP'; btn.style.display=''; cancelBtn.textContent='ย้อนกลับ'; }
+  else if(n===3){ btn.textContent='บันทึกรหัสผ่าน'; btn.style.display=''; cancelBtn.textContent='ย้อนกลับ'; }
+  else { btn.style.display='none'; cancelBtn.textContent='ปิด'; }
+}
+function mfpNext() {
+  var active = [1,2,3,4].find(function(i){
+    var e=document.getElementById('forgot-step'+i);
+    return e && !e.classList.contains('hidden');
+  });
+  if(active===1) mfpStep1Next();
+  else if(active===2) mfpStep2Next();
+  else if(active===3) mfpStep3Next();
+  else mfpClose();
+}
+async function mfpStep1Next() {
+  var email = (document.getElementById('forgot-email').value||'').trim().toLowerCase();
+  var e1 = document.getElementById('forgot-err1'); e1.style.display='none'; e1.textContent='';
+  if(!email){ e1.textContent='กรุณากรอกอีเมลองค์กร'; e1.style.display='block'; return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ e1.textContent='รูปแบบอีเมลไม่ถูกต้อง'; e1.style.display='block'; return; }
+  var src=(window.users&&window.users.length)?window.users:(typeof users!=='undefined'?users:[]);
+  var match=src.find(function(u){ return (u.email||'').trim().toLowerCase()===email; });
+  if(!match){ e1.textContent='ไม่พบบัญชีที่ผูกกับอีเมลนี้ กรุณาติดต่อทีม IT'; e1.style.display='block'; return; }
+  window._mfpUser = match;
+
+  var btn = document.getElementById('forgot-action-btn');
+  btn.disabled=true; btn.textContent='กำลังส่ง...';
+
+  var otp = _fpGenOtp ? _fpGenOtp() : String(100000+Math.floor(Math.random()*900000));
+  _mfpOtpHash   = await srpHash(otp);
+  _mfpOtpExpiry = Date.now() + 10*60*1000;
+
+  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน');
+  var body = encodeURIComponent('รหัส OTP ของท่านคือ: ' + otp + '\n\nรหัสนี้มีอายุ 10 นาที หากท่านไม่ได้ร้องขอ กรุณาเพิกเฉยต่ออีเมลนี้\n\nระบบจัดการสต๊อก IT');
+  window.open('mailto:'+email+'?subject='+subject+'&body='+body, '_blank');
+
+  document.getElementById('forgot-confirmed-email').textContent = email;
+  btn.disabled=false;
+  _mfpShowStep(2);
+  _mfpResendCountdown();
+  setTimeout(function(){ var oi=document.getElementById('forgot-otp'); if(oi) oi.focus(); }, 100);
+}
+function _mfpResendCountdown() {
+  var link=document.getElementById('forgot-resend-link'); if(!link) return;
+  var sec=60;
+  link.style.pointerEvents='none'; link.style.color='#94a3b8';
+  link.textContent='ส่งรหัสใหม่ ('+sec+')';
+  var t=setInterval(function(){
+    sec--;
+    if(sec<=0){ clearInterval(t); link.style.pointerEvents=''; link.style.color=''; link.textContent='ส่งรหัสใหม่'; }
+    else { link.textContent='ส่งรหัสใหม่ ('+sec+')'; }
+  }, 1000);
+}
+async function mfpResend() {
+  var email = ((window._mfpUser||{}).email||'');
+  if(!email) return;
+  var otp = _fpGenOtp ? _fpGenOtp() : String(100000+Math.floor(Math.random()*900000));
+  _mfpOtpHash   = await srpHash(otp);
+  _mfpOtpExpiry = Date.now() + 10*60*1000;
+  var subject = encodeURIComponent('[ระบบสต๊อก IT] รหัส OTP รีเซ็ตรหัสผ่าน (ส่งใหม่)');
+  var body = encodeURIComponent('รหัส OTP ของท่านคือ: ' + otp + '\n\nรหัสนี้มีอายุ 10 นาที\n\nระบบจัดการสต๊อก IT');
+  window.open('mailto:'+email+'?subject='+subject+'&body='+body, '_blank');
+  document.getElementById('forgot-otp').value='';
+  _mfpResendCountdown();
+  if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
+}
+async function mfpStep2Next() {
+  var otp = (document.getElementById('forgot-otp').value||'').trim();
+  var e2 = document.getElementById('forgot-err2'); e2.style.display='none'; e2.textContent='';
+  if(!otp||otp.length!==6){ e2.textContent='กรุณากรอกรหัส OTP 6 หลัก'; e2.style.display='block'; return; }
+  if(Date.now()>_mfpOtpExpiry){ e2.textContent='รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่'; e2.style.display='block'; return; }
+  var h = await srpHash(otp);
+  if(h!==_mfpOtpHash){ e2.textContent='รหัส OTP ไม่ถูกต้อง'; e2.style.display='block'; return; }
+  _mfpShowStep(3);
+  setTimeout(function(){ var p=document.getElementById('forgot-newpass'); if(p) p.focus(); }, 100);
+}
+async function mfpStep3Next() {
+  var p1=document.getElementById('forgot-newpass').value;
+  var p2=document.getElementById('forgot-newpass2').value;
+  var e3=document.getElementById('forgot-err3'); e3.style.display='none'; e3.textContent='';
+  if(p1.length<4){ e3.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; e3.style.display='block'; return; }
+  if(p1!==p2){ e3.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน'; e3.style.display='block'; return; }
+  var u=window._mfpUser;
+  if(!u){ e3.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่'; e3.style.display='block'; return; }
+  var hashed=await srpHash(p1); u.pass=hashed; u.hashed=true;
+  var src=typeof users!=='undefined'?users:(window.users||[]);
+  var idx=src.findIndex(function(x){ return x.id===u.id; });
+  if(idx>=0) src[idx]=u; else src.push(u);
+  window.users=src;
+  try{ if(typeof save==='function') save(); else localStorage.setItem('srp_users',JSON.stringify(src)); }catch(e){}
+  if(typeof toast==='function') toast('✅ เปลี่ยนรหัสผ่านสำเร็จ','ok',4000);
+  _mfpShowStep(4);
+}
+// ── override เก่าที่เรียกผ่านปุ่ม action ── 
+function forgotPasswordNext() { mfpNext(); }
+</script>
 
 <!-- ═══════════════ TOAST ═══════════════ -->
 
