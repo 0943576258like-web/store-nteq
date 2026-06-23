@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ระบบสต๊อก IT และแจ้งซ่อม</title>
+<!-- ⚡ Apply saved theme ASAP — before any render function reads _dm() -->
+<script>
+(function(){
+  try {
+    if (localStorage.getItem('srp_dark_mode') === '1')
+      document.documentElement.classList.add('dark-mode');
+    if (localStorage.getItem('srp_nav_collapsed') === '1')
+      document.documentElement.classList.add('nav-collapsed');
+  } catch(e) {}
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -673,6 +684,53 @@ const CO_ADDRESS = 'ฝ่าย IT Support | โทร. 02-xxx-xxxx | it@nteq.c
 const YR = new Date().getFullYear();
 
 // ─── SETTINGS (mutable, saved to localStorage) ───
+/* ── หน่วยงาน / แผนก → ผู้อนุมัติแจ้งซ่อม (จาก Excel) ── */
+const DEPT_APPROVERS = [
+  { code:'1000', dept:'Administrator',                approvers:['Thanakorn Sosan (Assistant Manager)'],         emails:['thanakorn@nteq-polymer.com'] },
+  { code:'1003', dept:'NTEQ-BD',                      approvers:['Chaipon Kerdvonbundit (MD)'],                  emails:['kenneth@nteq-polymer.com'] },
+  { code:'1009', dept:'NTEQ-Accounting&Finance',      approvers:['Penpisut Jaro (Manager)'],                     emails:['account_1@nteq-polymer.com'] },
+  { code:'1104', dept:'NTEQ-Purchase&Raw material',   approvers:['Somnuek Sae-ngow (Senior Manager)'],           emails:['somnuek@nteq-polymer.com'] },
+  { code:'1107', dept:'NTEQ-HR&ADMIN',                approvers:['Maliwan Bunrod (Manager)'],                    emails:['maliwan.b@nteq-polymer.com'] },
+  { code:'1109', dept:'NTEQ-IT',                      approvers:['Thanakorn Sosan (Assistant Manager)'],         emails:['thanakorn@nteq-polymer.com'] },
+  { code:'1111', dept:'NTEQ-Sustainability',          approvers:['Ratchapol Siriboon (Manager)'],                emails:['AGRO@NTEQ-POLYMER.COM'] },
+  { code:'1121', dept:'NTEQ-TSR HP',                  approvers:['Hathaichanok Tonkaew (Assistant Manager)'],    emails:['hata0912@nteq-polymer.com'] },
+  { code:'1201', dept:'NTEQ-Production',              approvers:[],                                              emails:[] },
+  { code:'1203', dept:'NTEQ-Wet Line',                approvers:['Hathaichanok Tonkaew (Assistant Manager)','Sommai Suksawat (Manager)'], emails:['hata0912@nteq-polymer.com',''] },
+  { code:'1204', dept:'NTEQ-DRY',                     approvers:['Hathaichanok Tonkaew (Assistant Manager)','Sommai Suksawat (Manager)'], emails:['hata0912@nteq-polymer.com',''] },
+  { code:'1206', dept:'NTEQ-Maintenance',             approvers:['Poranut Janrustana (Manager)'],                emails:['project@nteq-polymer.com'] },
+  { code:'1207', dept:'NTEQ-Quality Control',         approvers:['Apidech Thongsom (Senior Supervisor II)','Pitiporn Wttisen (Junior Supervisor)'], emails:['apid0814@nteq-polymer.com','quality6@nachitec.com'] },
+  { code:'1208', dept:'NTEQ-Safety',                  approvers:['Anongluk Rattanachaisiriwat (Manager)'],       emails:['safety@nteq-polymer.com'] },
+  { code:'1209', dept:'NTEQ-Environment',             approvers:['Anongluk Rattanachaisiriwat (Manager)'],       emails:['safety@nteq-polymer.com'] },
+  { code:'1501', dept:'NTEQ-Operation&Marketing',     approvers:['Montira Pubutta (Manager)'],                   emails:['operation_1@nteq-polymer.com'] },
+  { code:'1600', dept:'NTEQ-R&D',                     approvers:['Pattra Saphoo (Assistant Manager)'],           emails:['pattra@nteq-polymer.com'] },
+  { code:'1700', dept:'NTEQ-Technical',               approvers:['Suriyon Kingphetrungruang (CTO)'],             emails:[] },
+  { code:'2000', dept:'NCT-IT',                       approvers:['Thanakorn Sosan (Assistant Manager)'],         emails:['thanakorn@nteq-polymer.com'] },
+  { code:'2001', dept:'NCT-Operation',                approvers:['Montira Pubutta (Manager)'],                   emails:['operation_1@nteq-polymer.com'] },
+  { code:'2003', dept:'NCT-Purchase',                 approvers:['Pongsathon Pecharawach (Manager)'],            emails:[] },
+  { code:'2004', dept:'NCT-QC',                       approvers:['Raweewan Praposri (Assistant Manager)'],       emails:['quality5@nachitec.com'] },
+  { code:'2005', dept:'NCT-Safety',                   approvers:['Anongluk Rattanachaisiriwat (Manager)'],       emails:['safety@nteq-polymer.com'] },
+  { code:'2006', dept:'NCT-Factory',                  approvers:[],                                              emails:[] },
+  { code:'2007', dept:'NCT-HR&ADMIN',                 approvers:['Maliwan Bunrod (Manager)'],                    emails:['maliwan.b@nteq-polymer.com'] },
+  { code:'3001', dept:'SVP-IT',                       approvers:['Thanakorn Sosan (Assistant Manager)'],         emails:['thanakorn@nteq-polymer.com'] },
+  { code:'3002', dept:'SVP-Production',               approvers:['Poranut Janrustana (Manager)'],                emails:['project@nteq-polymer.com'] },
+  { code:'3003', dept:'SVP-Purchase',                 approvers:['ngohtong (Manager)'],                          emails:['ngohtong@sv-polymer.com'] },
+  { code:'3004', dept:'SVP-Account',                  approvers:['Penpisut Jaro (Manager)'],                     emails:['account_1@nteq-polymer.com'] },
+  { code:'3005', dept:'SVP-HR',                       approvers:['Maliwan Bunrod (Manager)'],                    emails:['maliwan.b@nteq-polymer.com'] },
+  { code:'3006', dept:'SVP-NY',                       approvers:['Chaipon Kerdvonbundit (MD)'],                  emails:['kenneth@nteq-polymer.com'] },
+  { code:'3007', dept:'SVP-QC',                       approvers:['Meenrada Wetchapan (Assistant Manager)'],      emails:['meenrada.w@sv-polymer.com'] },
+  { code:'3008', dept:'SVP-RM',                       approvers:['ngohtong (Manager)'],                          emails:['ngohtong@sv-polymer.com'] },
+  { code:'3009', dept:'SVP-Safety',                   approvers:['Anongluk Rattanachaisiriwat (Manager)'],       emails:['safety@nteq-polymer.com'] },
+  { code:'3010', dept:'SVP-Shipping',                 approvers:['Chaipon Kerdvonbundit (MD)'],                  emails:['kenneth@nteq-polymer.com'] },
+  { code:'3011', dept:'SVP-Technical',                approvers:[],                                              emails:[] },
+  { code:'9998', dept:'NCT-Management',               approvers:[],                                              emails:[] },
+  { code:'9999', dept:'NTEQ-Management',              approvers:[],                                              emails:[] },
+];
+/* helper: get approvers for a dept string */
+function getDeptApprovers(deptName) {
+  if (!deptName) return null;
+  return DEPT_APPROVERS.find(d => d.dept === deptName || deptName.includes(d.dept.split('-').pop())) || null;
+}
+
 const DEFAULT_SETTINGS = {
   coName:    'NTEQ Group IT Service',
   coAddress: 'ฝ่าย IT Support | โทร. 02-xxx-xxxx | it@nteq.com',
@@ -941,6 +999,75 @@ function toggleMobileNav() {
   const isOpen = nav.classList.toggle('nav-open');
   if (ov) ov.classList.toggle('show', isOpen);
 }
+
+/* ── Sidebar collapse (desktop) ── */
+function toggleSidebar() {
+  const collapsed = document.body.classList.toggle('nav-collapsed');
+  document.documentElement.classList.toggle('nav-collapsed', collapsed);
+  localStorage.setItem('srp_nav_collapsed', collapsed ? '1' : '0');
+}
+
+/* ── Wrap bare text nodes inside .nav-item so CSS can hide them ── */
+function _wrapNavTextNodes() {
+  /* nav menu items */
+  document.querySelectorAll('nav .nav-item').forEach(btn => {
+    Array.from(btn.childNodes).forEach(node => {
+      if (node.nodeType === 3 && node.textContent.trim()) {
+        const sp = document.createElement('span');
+        sp.className = 'nav-item-label';
+        sp.textContent = node.textContent;
+        btn.replaceChild(sp, node);
+      }
+    });
+  });
+  /* section headers (.nav-lbl) — ensure they are proper elements (they already are) */
+  /* but wrap any rogue text nodes that might be direct children of nav-sec */
+  document.querySelectorAll('nav .nav-sec').forEach(sec => {
+    Array.from(sec.childNodes).forEach(node => {
+      if (node.nodeType === 3 && node.textContent.trim()) {
+        const sp = document.createElement('span');
+        sp.className = 'nav-lbl';
+        sp.textContent = node.textContent;
+        sec.replaceChild(sp, node);
+      }
+    });
+  });
+}
+
+/* ── Dark / Light Mode ── */
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark-mode');
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  localStorage.setItem('srp_dark_mode', isDark ? '1' : '0');
+  _applyThemeIcons(isDark);
+  /* re-render dynamic inline-style sections */
+  setTimeout(function() {
+    try { if (typeof renderReportMenu === 'function') renderReportMenu(); } catch(e) {}
+    try { if (typeof renderRepairDashCards === 'function') renderRepairDashCards(); } catch(e) {}
+    try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e) {}
+  }, 0);
+}
+function _applyThemeIcons(isDark) {
+  const sun  = document.getElementById('theme-icon-sun');
+  const moon = document.getElementById('theme-icon-moon');
+  if (sun)  sun.style.display  = isDark ? 'none'  : 'block';
+  if (moon) moon.style.display = isDark ? 'block' : 'none';
+}
+function _initThemeAndNav() {
+  _wrapNavTextNodes();                       /* must run first */
+  /* sync body from html (html class was set early in <head>) */
+  const dark = document.documentElement.classList.contains('dark-mode') ||
+               localStorage.getItem('srp_dark_mode') === '1';
+  document.body.classList.toggle('dark-mode', dark);
+  document.documentElement.classList.toggle('dark-mode', dark);
+  _applyThemeIcons(dark);
+  const collapsed = document.documentElement.classList.contains('nav-collapsed') ||
+                    localStorage.getItem('srp_nav_collapsed') === '1';
+  document.body.classList.toggle('nav-collapsed', collapsed);
+  document.documentElement.classList.toggle('nav-collapsed', collapsed);
+}
+document.addEventListener('DOMContentLoaded', _initThemeAndNav);
+
 // ═══════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════
@@ -2931,6 +3058,15 @@ function renderReport() {
 }
 
 function renderReportMenu() {
+  const isDark = document.body.classList.contains('dark-mode');
+  const cardBg   = isDark ? '#1c2333' : '#ffffff';
+  const cardBdr  = isDark ? '#2a3850' : '#e4e7ef';
+  const cardBdr2 = isDark ? '#2a3850' : '#e2e8f0';
+  const labelClr = isDark ? '#94a3b8' : '#64748b';
+  const titleClr = isDark ? '#e2e8f0' : '#0f172a';
+  const shadow   = isDark ? '0 2px 10px rgba(0,0,0,.3)' : '0 2px 8px rgba(0,0,0,.04)';
+  const shadow2  = isDark ? '0 2px 12px rgba(0,0,0,.3)' : '0 2px 12px rgba(0,0,0,.07)';
+
   const secEl = document.getElementById('sec-report');
   // Summary KPIs
   const total   = requests.length;
@@ -2949,10 +3085,10 @@ function renderReportMenu() {
           {v:lowStock, l:'สต๊อกต่ำกว่าขั้นต่ำ',c:'#ef4444', ic:''},
           {v:repairOpen,l:'งานซ่อมค้าง',     c:'#f97316', ic:''},
         ].map(m=>`
-          <div style="background:#ffffff;border-radius:14px;padding:16px 18px;border:1.5px solid #e4e7ef;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+          <div style="background:${cardBg};border-radius:14px;padding:16px 18px;border:1.5px solid ${cardBdr};box-shadow:${shadow}">
             <div style="font-size:24px;margin-bottom:6px">${m.ic}</div>
             <div style="font-size:26px;font-weight:800;color:${m.c};line-height:1">${m.v}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:4px;font-weight:500">${m.l}</div>
+            <div style="font-size:12px;color:${labelClr};margin-top:4px;font-weight:500">${m.l}</div>
           </div>`).join('')}
       </div>
     </div>
@@ -2961,14 +3097,14 @@ function renderReportMenu() {
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
         ${REPORT_CARDS.map(c=>`
           <div onclick="openSubReport('${c.id}')" style="
-            background:#ffffff;border-radius:16px;padding:22px 18px;
-            border:1.5px solid #e2e8f0;cursor:pointer;transition:all .2s;
-            box-shadow:0 2px 12px rgba(0,0,0,.07);
-          " onmouseover="this.style.borderColor='${c.color}';this.style.boxShadow='0 8px 24px rgba(0,0,0,.1)';this.style.transform='translateY(-3px)'"
-            onmouseout="this.style.borderColor='#e4e7ef';this.style.boxShadow='0 2px 8px rgba(0,0,0,.04)';this.style.transform='translateY(0)'">
+            background:${cardBg};border-radius:16px;padding:22px 18px;
+            border:1.5px solid ${cardBdr2};cursor:pointer;transition:all .2s;
+            box-shadow:${shadow2};
+          " onmouseover="this.style.borderColor='${c.color}';this.style.boxShadow='0 8px 24px rgba(0,0,0,.15)';this.style.transform='translateY(-3px)'"
+            onmouseout="this.style.borderColor='${cardBdr2}';this.style.boxShadow='${shadow2}';this.style.transform='translateY(0)'">
             <div style="width:44px;height:44px;border-radius:12px;background:${c.bg};display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px">${c.icon}</div>
-            <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:4px">${c.title}</div>
-            <div style="font-size:12px;color:#94a3b8;line-height:1.5">${c.desc}</div>
+            <div style="font-size:14px;font-weight:700;color:${titleClr};margin-bottom:4px">${c.title}</div>
+            <div style="font-size:12px;color:${labelClr};line-height:1.5">${c.desc}</div>
             <div style="margin-top:12px;display:flex;align-items:center;gap:4px;font-size:12px;color:${c.color};font-weight:600">
               ดูรายงาน
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3018,18 +3154,27 @@ function renderSubReport(id) {
 }
 
 /* ── helpers ── */
+function _dm() {
+  return document.documentElement.classList.contains('dark-mode') ||
+         document.body.classList.contains('dark-mode');
+}
 function rCard(label, value, color, sub) {
-  return `<div style="background:#ffffff;border-radius:12px;padding:16px;border:1.5px solid #e4e7ef">
+  const bg  = _dm() ? '#1c2333' : '#ffffff';
+  const bdr = _dm() ? '#2a3850' : '#e4e7ef';
+  const valClr = color || (_dm() ? '#e2e8f0' : '#0f172a');
+  return `<div style="background:${bg};border-radius:12px;padding:16px;border:1.5px solid ${bdr}">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:6px">${label}</div>
-    <div style="font-size:28px;font-weight:800;color:${color||'#0f172a'};line-height:1">${value}</div>
+    <div style="font-size:28px;font-weight:800;color:${valClr};line-height:1">${value}</div>
     ${sub?`<div style="font-size:12px;color:#64748b;margin-top:4px">${sub}</div>`:''}
   </div>`;
 }
 function hBar(label, val, max, color) {
   const pct = max ? Math.round(val/max*100) : 0;
+  const trackBg = _dm() ? '#2a3850' : '#f1f5f9';
+  const labelClr = _dm() ? '#94a3b8' : '#475569';
   return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-    <div style="width:110px;flex-shrink:0;font-size:13px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${label}">${label}</div>
-    <div style="flex:1;height:22px;background:#f1f5f9;border-radius:6px;overflow:hidden">
+    <div style="width:110px;flex-shrink:0;font-size:13px;color:${labelClr};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${label}">${label}</div>
+    <div style="flex:1;height:22px;background:${trackBg};border-radius:6px;overflow:hidden">
       <div style="width:${pct}%;height:100%;background:${color||'#22c55e'};border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;min-width:${val>0?28:0}px;transition:width .5s">
         ${val>0?`<span style="font-size:11px;font-weight:700;color:#fff">${val}</span>`:''}
       </div>
@@ -3038,16 +3183,23 @@ function hBar(label, val, max, color) {
   </div>`;
 }
 function tableWrap(thead, tbody) {
-  return `<div style="overflow-x:auto;border-radius:10px;border:1.5px solid #e4e7ef;margin-top:1rem">
+  const bdr    = _dm() ? '#2a3850' : '#e4e7ef';
+  const thBg   = _dm() ? '#222d3f' : '#f8fafc';
+  const thBdr  = _dm() ? '#2a3850' : '#e4e7ef';
+  return `<div style="overflow-x:auto;border-radius:10px;border:1.5px solid ${bdr};margin-top:1rem">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <thead><tr style="background:#f8fafc">${thead.map(h=>`<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;border-bottom:1.5px solid #e4e7ef;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+      <thead><tr style="background:${thBg}">${thead.map(h=>`<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;border-bottom:1.5px solid ${thBdr};white-space:nowrap">${h}</th>`).join('')}</tr></thead>
       <tbody>${tbody}</tbody>
     </table>
   </div>`;
 }
 function secCard(title, content) {
-  return `<div style="background:#ffffff;border-radius:14px;border:1.5px solid #e4e7ef;padding:20px;margin-bottom:14px">
-    <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #f1f5f9">${title}</div>
+  const bg  = _dm() ? '#1c2333' : '#ffffff';
+  const bdr = _dm() ? '#2a3850' : '#e4e7ef';
+  const ttlClr = _dm() ? '#e2e8f0' : '#0f172a';
+  const divClr = _dm() ? '#2a3850' : '#f1f5f9';
+  return `<div style="background:${bg};border-radius:14px;border:1.5px solid ${bdr};padding:20px;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:700;color:${ttlClr};margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid ${divClr}">${title}</div>
     ${content}
   </div>`;
 }
@@ -3721,6 +3873,44 @@ function saveRepair() {
   toast('ส่งแจ้งซ่อม '+id+' สำเร็จ');
 }
 
+/* ── Populate dept dropdown in repair-edit modal ── */
+function initApproveDeptSelect(savedDept, savedApprover) {
+  const sel = document.getElementById('redit-approve-dept');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- เลือกหน่วยงาน --</option>' +
+    DEPT_APPROVERS.map(d =>
+      `<option value="${d.dept}" ${d.dept === savedDept ? 'selected' : ''}>${d.code} — ${d.dept}</option>`
+    ).join('');
+  onApproveDeptChange(savedDept, savedApprover);
+}
+function onApproveDeptChange(deptVal, preselectApprover) {
+  const apSel = document.getElementById('redit-approver');
+  const emailWrap = document.getElementById('redit-approver-email-wrap');
+  const emailSpan = document.getElementById('redit-approver-email');
+  if (!apSel) return;
+  const found = DEPT_APPROVERS.find(d => d.dept === deptVal);
+  if (found && found.approvers.length) {
+    apSel.innerHTML = '<option value="">-- เลือกผู้อนุมัติ --</option>' +
+      found.approvers.map((a, i) => `<option value="${a}" ${a === preselectApprover ? 'selected' : ''}>${a}</option>`).join('');
+    /* show email of selected approver */
+    const idx = apSel.selectedIndex - 1;
+    const email = (found.emails && found.emails[idx] !== undefined) ? found.emails[idx] : '';
+    if (email) {
+      emailSpan.textContent = email;
+      emailWrap.style.display = 'block';
+    } else { emailWrap.style.display = 'none'; }
+    apSel.onchange = function() {
+      const ni = apSel.selectedIndex - 1;
+      const em = (found.emails && found.emails[ni] !== undefined) ? found.emails[ni] : '';
+      if (em) { emailSpan.textContent = em; emailWrap.style.display = 'block'; }
+      else { emailWrap.style.display = 'none'; }
+    };
+  } else {
+    apSel.innerHTML = '<option value="">-- ไม่มีผู้อนุมัติ --</option>';
+    emailWrap && (emailWrap.style.display = 'none');
+  }
+}
+
 function openRepairEdit(id) {
   const r = repairs.find(x=>x.id===id); if(!r) return;
   editRepairStatusId = id;
@@ -3730,9 +3920,10 @@ function openRepairEdit(id) {
   document.getElementById('redit-created').textContent   = r.created || '—';
   document.getElementById('redit-reporter').textContent  = r.reporter || '—';
   document.getElementById('redit-emp').textContent       = r.emp || '—';
-  // Section B — ผู้อนุมัติแจ้งซ่อม
-  document.getElementById('redit-approve-date').textContent = r.approveDate || '—';
-  document.getElementById('redit-approver').textContent     = r.approver || '—';
+  // Section B — ผู้อนุมัติแจ้งซ่อม (now interactive)
+  const apDateEl = document.getElementById('redit-approve-date');
+  if (apDateEl) apDateEl.value = r.approveDate || '';
+  initApproveDeptSelect(r.approveDept || r.dept || '', r.approver || '');
   // Section C — ข้อมูลปัญหา (editable)
   document.getElementById('redit-type').value     = r.type || '';
   document.getElementById('redit-subtype').value  = r.subtype || '';
@@ -3759,6 +3950,9 @@ function saveRepairEdit() {
   r.asset      = document.getElementById('redit-asset').value.trim();
   r.urgent     = document.getElementById('redit-urgent').value;
   r.problem    = document.getElementById('redit-problem').value.trim();
+  r.approveDate = document.getElementById('redit-approve-date')?.value || '';
+  r.approveDept = document.getElementById('redit-approve-dept')?.value || '';
+  r.approver    = document.getElementById('redit-approver')?.value || '';
   r.actionDate = document.getElementById('redit-action-date').value;
   r.actionDate2= document.getElementById('redit-action-date2').value;
   r.tech       = document.getElementById('redit-tech1').value.trim();
@@ -4023,12 +4217,115 @@ function renderRepair() {
 
 function exportRepair() {
   const wb = XLSX.utils.book_new();
-  const sL = {open:'รอดำเนินการ',inprogress:'กำลังซ่อม',done:'ซ่อมเสร็จ',cannot:'ซ่อมไม่ได้'};
+  const sL = {open:'รอดำเนินการ',checking:'ตรวจสอบ',inprogress:'กำลังซ่อม',sent:'ส่งซ่อมภายนอก',done:'ซ่อมเสร็จ',cannot:'ซ่อมไม่ได้',cancelled:'ยกเลิก'};
   XLSX.utils.book_append_sheet(wb, mkSheet(
     ['เลขที่','ผู้แจ้ง','แผนก','ประเภท','อาการ','Asset','ผู้รับผิดชอบ','หมายเหตุ','วันที่แจ้ง','สถานะ'],
-    repairs.map(r=>[r.id,r.reporter,r.dept,r.type,r.problem,r.asset||'',r.tech||'',r.remark||'',r.created,sL[r.status]])
+    repairs.map(r=>[r.id,r.reporter,r.dept,r.type,r.problem,r.asset||'',r.tech||'',r.remark||'',r.created,sL[r.status]||r.status])
   ), 'แจ้งซ่อม IT');
   XLSX.writeFile(wb,'IT_repair_'+new Date().toISOString().split('T')[0]+'.xlsx');
+}
+function exportUsers(){
+  if(!PERMS[currentUser.role].users){toast('ไม่มีสิทธิ์ Export ผู้ใช้งาน','err');return;}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(
+    ['Username','ชื่อ-นามสกุล','รหัสพนักงาน','บทบาท','แผนก','อีเมล','เบอร์โทร','สถานะ'],
+    users.map(u=>[u.username,u.name,u.emp||'',ROLE_LABELS[u.role]||u.role,u.dept||'',u.email||'',u.phone||'',u.active?'ใช้งาน':'ปิดใช้งาน'])
+  ),'ผู้ใช้งาน');
+  XLSX.writeFile(wb,'IT_users_'+new Date().toISOString().split('T')[0]+'.xlsx');
+}
+function exportDevices(){
+  if(!PERMS[currentUser.role].export){toast('ไม่มีสิทธิ์','err');return;}
+  const data=(typeof deviceData!=='undefined')?deviceData:[];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(
+    ['รหัสอุปกรณ์','Asset Code','ชื่ออุปกรณ์','ยี่ห้อ','รุ่น','ประเภท','Serial No.','แผนก','ผู้ใช้งาน','บริษัท','การรับประกัน','ราคา','สถานะ'],
+    data.map(d=>[d.id,d.code||'',d.name,d.brand||'',d.model||'',d.type||'',d.sn||'',d.dept||'',d.user||'',d.company||'',d.warranty||'',d.price||0,
+      d.status==='active'?'ใช้งาน':d.status==='inactive'?'เลิกใช้':'อุปกรณ์ส่วนกลาง'])
+  ),'อุปกรณ์ IT');
+  XLSX.writeFile(wb,'IT_devices_'+new Date().toISOString().split('T')[0]+'.xlsx');
+}
+function exportPMPlans(){
+  if(!PERMS[currentUser.role].export){toast('ไม่มีสิทธิ์','err');return;}
+  const plans=(typeof pmPlans!=='undefined')?pmPlans:[];
+  const logs=(typeof pmLogs!=='undefined')?pmLogs:[];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(
+    ['รหัสแผน','ชื่ออุปกรณ์','ประเภทงาน','รอบ (วัน)','วันครั้งถัดไป','ผู้รับผิดชอบ','หมายเหตุ','สถานะ'],
+    plans.map(p=>[p.id||'',p.device||'',p.type||'',p.cycle||'',p.nextDate||'',p.tech||'',p.note||'',p.active===false?'ปิดใช้งาน':'ใช้งาน'])
+  ),'แผนบำรุงรักษา');
+  if(logs.length) XLSX.utils.book_append_sheet(wb,mkSheet(
+    ['รหัส','อุปกรณ์','ประเภทงาน','ผู้ดำเนินการ','วันที่ทำ','หมายเหตุ','ผลลัพธ์'],
+    logs.map(l=>[l.id||'',l.device||'',l.type||'',l.tech||'',l.date||'',l.note||'',l.result||''])
+  ),'ประวัติบำรุงรักษา');
+  XLSX.writeFile(wb,'IT_PM_'+new Date().toISOString().split('T')[0]+'.xlsx');
+}
+
+/* ═══════════════════════════════════════════════════
+   MASTER EXPORT DROPDOWN MENU
+   ═══════════════════════════════════════════════════ */
+function openExportMenu(btn) {
+  const old = document.getElementById('_exp-dd');
+  if (old) { old.remove(); return; }
+  const isDark = _dm();
+  const bg  = isDark ? '#1c2333' : '#ffffff';
+  const bdr = isDark ? '#2a3850' : '#e2e8f0';
+  const tc  = isDark ? '#e2e8f0' : '#111827';
+  const sc  = isDark ? '#64748b' : '#94a3b8';
+  const hov = isDark ? '#222d3f' : '#f8fafc';
+  const div = isDark ? '#2a3850' : '#f1f5f9';
+
+  const p = PERMS[currentUser.role] || {};
+  const rows = [
+    { icon:'📊', label:'ภาพรวมทั้งหมด',     sub:'ใบเบิก + สต็อก + ผู้ใช้',        fn:'exportAll()',      ok: p.export },
+    { sep:1 },
+    { icon:'📋', label:'ใบเบิก IT',           sub:'ใบเบิกทั้งหมดทุกสถานะ',          fn:'exportHistory()',  ok: true },
+    { icon:'✅', label:'อนุมัติใบเบิก',      sub:'รายการรออนุมัติและผ่านแล้ว',      fn:'exportApprove()',  ok: p.approve },
+    { icon:'📦', label:'สต๊อก IT',            sub:'รายการสินค้าในคลัง',              fn:'exportStock()',    ok: p.stock },
+    { icon:'🖥️', label:'อุปกรณ์ IT',          sub:'ทะเบียนครุภัณฑ์ทั้งหมด',         fn:'exportDevices()',  ok: p.export },
+    { icon:'🔧', label:'แจ้งซ่อม IT',         sub:'งานซ่อมทุกสถานะ',                fn:'exportRepair()',   ok: p.repairs },
+    { icon:'🗓️', label:'แผนบำรุงรักษา',      sub:'PM แผน + ประวัติ',               fn:'exportPMPlans()', ok: p.export },
+    { sep:1 },
+    { icon:'👤', label:'ผู้ใช้งาน',           sub:'รายชื่อและสิทธิ์ทั้งหมด',        fn:'exportUsers()',    ok: p.users },
+    { icon:'📈', label:'รายงานประจำเดือน',   sub:'สรุปรายงาน IT รายเดือน',         fn:'exportReport()',   ok: p.report },
+  ];
+
+  const html = rows.map(r => {
+    if (r.sep) return `<div style="height:1px;background:${div};margin:4px 6px"></div>`;
+    const dim = !r.ok;
+    return `<button onclick="${dim?'':r.fn+';document.getElementById(\'_exp-dd\').remove()'}" style="
+      display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;
+      border:none;background:none;cursor:${dim?'not-allowed':'pointer'};border-radius:8px;
+      opacity:${dim?'0.38':'1'};transition:background .12s;
+    " ${dim?'':'onmouseover="this.style.background=\''+hov+'\'"onmouseout="this.style.background=\'none\'"'}>
+      <span style="font-size:17px;width:22px;text-align:center;flex-shrink:0">${r.icon}</span>
+      <span style="flex:1">
+        <span style="display:block;font-size:13px;font-weight:600;color:${tc};white-space:nowrap">${r.label}</span>
+        <span style="display:block;font-size:11px;color:${sc};margin-top:1px">${r.sub}</span>
+      </span>
+      ${!dim?`<svg width="12" height="12" viewBox="0 0 20 20" fill="none" style="opacity:.35;flex-shrink:0"><path d="M4 14v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="${tc}" stroke-width="1.8" stroke-linecap="round"/><path d="M10 3v10M7 10l3 3 3-3" stroke="${tc}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+    </button>`;
+  }).join('');
+
+  const dd = document.createElement('div');
+  dd.id = '_exp-dd';
+  dd.style.cssText = `position:fixed;z-index:99999;background:${bg};border:1.5px solid ${bdr};
+    border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,${isDark?'.5':'.18'});
+    padding:6px;min-width:270px;animation:_eIn .14s ease`;
+  dd.innerHTML = `<style>@keyframes _eIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}</style>
+    <div style="padding:7px 12px 5px;margin-bottom:2px;border-bottom:1px solid ${div}">
+      <span style="font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:${sc}">Export ข้อมูล</span>
+    </div>${html}`;
+
+  document.body.appendChild(dd);
+  const rr = btn.getBoundingClientRect();
+  let left = rr.right - 270;
+  if (left < 8) left = 8;
+  dd.style.top  = (rr.bottom + 6) + 'px';
+  dd.style.left = left + 'px';
+
+  setTimeout(() => document.addEventListener('click', function _c(e){
+    if (!dd.contains(e.target) && e.target !== btn){ dd.remove(); document.removeEventListener('click',_c); }
+  }), 0);
 }
 
 
@@ -5277,6 +5574,303 @@ header {
 .toast.err { border-left:3px solid var(--red) }
 @keyframes tin { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
 
+/* ════════════════════════════════════════════
+   SIDEBAR TOGGLE BUTTON
+════════════════════════════════════════════ */
+#sidebar-toggle-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background .15s, color .15s, transform .2s;
+  flex-shrink: 0;
+}
+#sidebar-toggle-btn:hover { background: rgba(255,255,255,.08); color: var(--text); }
+@media(min-width:769px) { #sidebar-toggle-btn { display:inline-flex !important; } }
+
+/* ════════════════════════════════════════════
+   COLLAPSED SIDEBAR — icon-only rail
+════════════════════════════════════════════ */
+/* smooth transition on the nav itself */
+nav {
+  transition:
+    width      .25s cubic-bezier(.4,0,.2,1),
+    min-width  .25s cubic-bezier(.4,0,.2,1),
+    padding    .25s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;        /* clips text during transition */
+}
+
+@media(min-width:769px) {
+  body.nav-collapsed nav {
+    width:     62px !important;
+    min-width: 62px !important;
+    padding:   .75rem .4rem !important;
+    overflow:  hidden !important;
+  }
+
+  /* ─ hide ALL text ─ */
+  body.nav-collapsed nav .nav-lbl,
+  body.nav-collapsed nav .nav-go-green { display:none !important; }
+
+  body.nav-collapsed nav .nav-item > .nav-item-label,
+  body.nav-collapsed nav .nav-item > span:not(.nav-badge),
+  body.nav-collapsed nav .nav-item > .nav-text { display:none !important; }
+
+  /* hide settings label + arrow */
+  body.nav-collapsed nav .nav-settings-btn > .nav-item-label,
+  body.nav-collapsed nav .nav-settings-btn > span,
+  body.nav-collapsed nav .nav-settings-btn > svg:last-child { display:none !important; }
+
+  /* center icon in each nav-item */
+  body.nav-collapsed nav .nav-item {
+    justify-content: center !important;
+    padding:  10px 0 !important;
+    gap:      0     !important;
+    width:    100%  !important;
+    overflow: hidden !important;
+  }
+
+  /* icon slightly larger when collapsed */
+  body.nav-collapsed nav .nav-item svg:first-child {
+    width:   18px !important;
+    height:  18px !important;
+    opacity: .75  !important;
+  }
+  body.nav-collapsed nav .nav-item.active svg:first-child,
+  body.nav-collapsed nav .nav-item:hover  svg:first-child { opacity: 1 !important; }
+
+  /* active bar still shows */
+  body.nav-collapsed nav .nav-item.active::before { display:block !important; }
+
+  /* tooltip on hover */
+  body.nav-collapsed nav .nav-item::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%; transform: translateY(-50%);
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 9999;
+  }
+  body.nav-collapsed nav .nav-item:hover::after { opacity: 1; }
+
+  /* submenu pops out to the right */
+  body.nav-collapsed #settings-submenu {
+    left:   calc(100% + 6px) !important;
+    bottom: 0 !important;
+    top:    auto !important;
+  }
+
+  /* toggle button rotates to signal state */
+  body.nav-collapsed #sidebar-toggle-btn { transform: scaleX(-1); }
+}
+
+/* ════════════════════════════════════════════
+   THEME TOGGLE BUTTON  (pill switch style)
+════════════════════════════════════════════ */
+#theme-toggle-btn {
+  position: relative;
+  width: 52px !important;
+  height: 28px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.12) !important;
+  border: 1.5px solid rgba(255,255,255,.18) !important;
+  cursor: pointer !important;
+  transition: background .25s, border-color .25s !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+#theme-toggle-btn:hover { background: rgba(255,255,255,.18) !important; }
+
+/* pill track fills in dark mode */
+body.dark-mode #theme-toggle-btn {
+  background: #3b4a6b !important;
+  border-color: #4a5a80 !important;
+}
+
+/* the sliding knob */
+#theme-toggle-btn::before {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+body.dark-mode #theme-toggle-btn::before {
+  transform: translateX(24px);
+  background: #c7d2fe;
+}
+
+/* icons inside the pill */
+#theme-toggle-btn svg { position:absolute; top:50%; transform:translateY(-50%); pointer-events:none; transition:opacity .2s; }
+#theme-icon-sun  { left:6px;  }
+#theme-icon-moon { right:5px; }
+body:not(.dark-mode) #theme-icon-moon { opacity:0; }
+body.dark-mode #theme-icon-sun  { opacity:0; }
+
+/* ════════════════════════════════════════════
+   DARK MODE
+════════════════════════════════════════════ */
+body.dark-mode, html.dark-mode body {
+  --bg:           #0d1117;
+  --bg-2:         #161b25;
+  --surface:      #1c2333;
+  --surface-2:    #222d3f;
+  --surface-3:    #283348;
+  --glass:        rgba(22,27,37,0.97);
+  --glass-border: rgba(255,255,255,0.07);
+  --border:       #2a3850;
+  --border-bright:#364d6e;
+  --border-hover: #4d6585;
+  --text:         #e2e8f0;
+  --text-muted:   #94a3b8;
+  --text-light:   #64748b;
+  --text-dim:     #64748b;
+  --nav-bg:       #0f1623;
+  --nav-border:   #1c2840;
+  --shadow:       0 1px 4px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:    0 4px 14px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
+  --shadow-card:  0 2px 10px rgba(0,0,0,.4), 0 1px 4px rgba(0,0,0,.3);
+}
+
+/* base */
+body.dark-mode { background: var(--bg) !important; color: var(--text) !important; }
+
+/* header */
+body.dark-mode #app-header {
+  background: #0f1623 !important;
+  border-bottom: 1px solid #1c2840 !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.04) !important;
+}
+body.dark-mode #app-header * { color: var(--text) !important; }
+body.dark-mode #app-header .hd-date { color: var(--text-muted) !important; }
+
+/* search bar in header */
+body.dark-mode .hd-search { background: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.1) !important; border-radius: 8px; }
+body.dark-mode .hd-search input { background: transparent !important; color: var(--text) !important; }
+body.dark-mode .hd-search input::placeholder { color: var(--text-light) !important; }
+body.dark-mode .hd-search svg path, body.dark-mode .hd-search svg circle { stroke: var(--text-muted) !important; }
+
+/* sidebar nav */
+body.dark-mode nav,
+body.dark-mode #app-layout nav {
+  background: #0f1623 !important;
+  border-right: 1px solid #1c2840 !important;
+}
+body.dark-mode .nav-item { color: #94a3b8 !important; background: none !important; }
+body.dark-mode .nav-item:hover { background: rgba(255,255,255,.07) !important; color: #e2e8f0 !important; }
+body.dark-mode .nav-item.active { background: rgba(59,130,246,.18) !important; color: #93c5fd !important; }
+body.dark-mode .nav-item.active::before { background: #3b82f6 !important; }
+body.dark-mode .nav-lbl { color: #374151 !important; }
+body.dark-mode nav svg path, body.dark-mode nav svg rect,
+body.dark-mode nav svg circle, body.dark-mode nav svg polyline { stroke: #475569 !important; }
+body.dark-mode .nav-item.active svg path, body.dark-mode .nav-item.active svg rect,
+body.dark-mode .nav-item.active svg circle { stroke: #93c5fd !important; }
+body.dark-mode .nav-item:hover svg path, body.dark-mode .nav-item:hover svg rect,
+body.dark-mode .nav-item:hover svg circle { stroke: #94a3b8 !important; }
+body.dark-mode .nav-go-green {
+  background: rgba(21,128,61,.12) !important;
+  border-color: rgba(21,128,61,.22) !important;
+}
+body.dark-mode .ngg-title, body.dark-mode .ngg-text { color: #94a3b8 !important; }
+body.dark-mode .ngg-link { color: #4ade80 !important; }
+
+/* settings submenu */
+body.dark-mode #settings-submenu {
+  background: #1c2333 !important;
+  border-color: #2a3850 !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5) !important;
+}
+body.dark-mode #settings-submenu > div[style*="10.5px"] { color: #475569 !important; }
+body.dark-mode #settings-submenu > div[style*="background:#f1f5f9"] { background: #2a3850 !important; }
+body.dark-mode .settings-sub-item { color: #e2e8f0 !important; }
+body.dark-mode .settings-sub-item:hover { background: #222d3f !important; color: #93c5fd !important; }
+body.dark-mode #settings-arrow { opacity: .5 !important; }
+
+/* profile dropdown */
+body.dark-mode #profile-dropdown {
+  background: #1c2333 !important;
+  border-color: #2a3850 !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5) !important;
+}
+body.dark-mode #pd-name { color: #e2e8f0 !important; }
+body.dark-mode #pd-role { color: #64748b !important; }
+body.dark-mode #profile-dropdown > div:first-child { border-bottom-color: #2a3850 !important; }
+
+/* main & content */
+body.dark-mode main { background: var(--bg) !important; }
+body.dark-mode .page-hd h1 { color: #e2e8f0 !important; }
+body.dark-mode .page-hd p { color: #64748b !important; }
+
+/* cards */
+body.dark-mode .card,
+body.dark-mode .stat-card, body.dark-mode .kpi-card, body.dark-mode .dash-card,
+body.dark-mode [class*="card"]:not([class*="nav"]):not([class*="btn"]):not(.card-title) {
+  background: #1c2333 !important;
+  border-color: #2a3850 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3) !important;
+}
+
+/* tables */
+body.dark-mode table { background: #1c2333 !important; border-color: #2a3850 !important; }
+body.dark-mode thead, body.dark-mode thead tr, body.dark-mode th {
+  background: #222d3f !important; color: #94a3b8 !important; border-color: #2a3850 !important;
+}
+body.dark-mode td { color: #e2e8f0 !important; border-color: #2a3850 !important; background: transparent !important; }
+body.dark-mode tr:hover td { background: rgba(255,255,255,.025) !important; }
+
+/* forms */
+body.dark-mode input:not([type="radio"]):not([type="checkbox"]):not([type="color"]),
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #222d3f !important;
+  color: #e2e8f0 !important;
+  border-color: #2a3850 !important;
+}
+body.dark-mode input::placeholder, body.dark-mode textarea::placeholder { color: #475569 !important; }
+body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.15) !important;
+}
+
+/* modals */
+body.dark-mode .modal-wrap > div,
+body.dark-mode .modal {
+  background: #1c2333 !important;
+  border-color: #2a3850 !important;
+}
+
+/* dashboard banner */
+body.dark-mode .dash-banner { background: linear-gradient(135deg,#1a3254 0%,#0f1e36 100%) !important; }
+
+/* notification bell */
+body.dark-mode .hd-bell { color: var(--text-muted) !important; }
+body.dark-mode .hd-bell-badge { background: #ef4444 !important; color:#fff !important; }
+
+/* scrollbar in dark mode */
+body.dark-mode ::-webkit-scrollbar-track { background: #161b25 !important; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #2a3850 !important; }
+body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #364d6e !important; }
+
 /* ══════════════════════════════════
    LAYOUT & SIDEBAR NAV
 ══════════════════════════════════ */
@@ -6176,20 +6770,21 @@ nav {
 .modal-hd h2 { font-size:15px !important; font-weight:600 !important; color:#111827 !important; }
 
 /* Section panels */
-.panel, .section-panel {
+body:not(.dark-mode) .panel,
+body:not(.dark-mode) .section-panel {
   background:#ffffff !important;
   border:1px solid var(--border) !important;
 }
 
-/* Status badges - professional */
-.badge-pending, .status-pending   { background:#eff6ff !important; color:#1d4ed8 !important; border:1px solid #bfdbfe !important; }
-.badge-approved, .status-approved { background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; }
-.badge-rejected, .status-rejected,
-.badge-cancel, .status-cancel     { background:#fef2f2 !important; color:#b91c1c !important; border:1px solid #fecaca !important; }
-.badge-processing, .status-processing { background:#fffbeb !important; color:#b45309 !important; border:1px solid #fde68a !important; }
-.badge-done, .status-done         { background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; }
+/* Status badges - light mode */
+body:not(.dark-mode) .badge-pending, body:not(.dark-mode) .status-pending   { background:#eff6ff !important; color:#1d4ed8 !important; border:1px solid #bfdbfe !important; }
+body:not(.dark-mode) .badge-approved, body:not(.dark-mode) .status-approved { background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; }
+body:not(.dark-mode) .badge-rejected, body:not(.dark-mode) .status-rejected,
+body:not(.dark-mode) .badge-cancel,   body:not(.dark-mode) .status-cancel   { background:#fef2f2 !important; color:#b91c1c !important; border:1px solid #fecaca !important; }
+body:not(.dark-mode) .badge-processing,body:not(.dark-mode) .status-processing { background:#fffbeb !important; color:#b45309 !important; border:1px solid #fde68a !important; }
+body:not(.dark-mode) .badge-done,     body:not(.dark-mode) .status-done     { background:#f0fdf4 !important; color:#15803d !important; border:1px solid #bbf7d0 !important; }
 
-/* Font consistency across all elements */
+/* Font consistency */
 button, input, select, textarea, label, td, th, p, span, div, h1, h2, h3, h4, h5 {
   font-family:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',sans-serif;
 }
@@ -6197,14 +6792,59 @@ code, .mono, [style*="monospace"], .badge-id {
   font-family:'IBM Plex Mono',monospace !important;
 }
 
-/* Metric cards */
-.metric { background:#ffffff !important; border:1px solid #e5e7eb !important; }
-.metric:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08) !important; border-color:#c8cdd8 !important; }
+/* Metric/KPI cards */
+body:not(.dark-mode) .metric { background:#ffffff !important; border:1px solid #e5e7eb !important; }
+body:not(.dark-mode) .metric:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08) !important; border-color:#c8cdd8 !important; }
+
+/* Dark mode metric/KPI cards */
+body.dark-mode .metric {
+  background: #1c2333 !important;
+  border: 1px solid #2a3850 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3) !important;
+}
+body.dark-mode .metric:hover {
+  border-color: #3b5280 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4) !important;
+}
+body.dark-mode .metric-val  { color: #e2e8f0 !important; }
+body.dark-mode .metric-label { color: #94a3b8 !important; }
+body.dark-mode .metric-link { color: #60a5fa !important; }
+body.dark-mode .metric-link:hover { color: #93c5fd !important; }
+body.dark-mode .metrics { background: transparent !important; }
+
+/* Dark mode status badges */
+body.dark-mode .status-pending, body.dark-mode .badge-pending     { background:rgba(245,158,11,.15) !important; color:#fbbf24 !important; border-color:rgba(245,158,11,.3) !important; }
+body.dark-mode .status-approved, body.dark-mode .badge-approved   { background:rgba(52,211,153,.12) !important; color:#34d399 !important; border-color:rgba(52,211,153,.3) !important; }
+body.dark-mode .status-cancel, body.dark-mode .badge-cancel,
+body.dark-mode .status-rejected,body.dark-mode .badge-rejected    { background:rgba(248,113,113,.12) !important; color:#f87171 !important; border-color:rgba(248,113,113,.3) !important; }
+body.dark-mode .status-done, body.dark-mode .badge-done            { background:rgba(52,211,153,.12) !important; color:#34d399 !important; border-color:rgba(52,211,153,.3) !important; }
+body.dark-mode .status-processing,body.dark-mode .badge-processing { background:rgba(251,191,36,.12) !important; color:#fbbf24 !important; border-color:rgba(251,191,36,.3) !important; }
+
+/* Dark mode panel */
+body.dark-mode .panel, body.dark-mode .section-panel {
+  background: #1c2333 !important;
+  border-color: #2a3850 !important;
+}
+
+/* Report / analytics cards (renderReportMenu generates div.menu-card etc.) */
+body.dark-mode .menu-card,
+body.dark-mode .rpt-card,
+body.dark-mode .analytics-card,
+body.dark-mode [class*="rpt-"],
+body.dark-mode [class*="report-card"] {
+  background: #1c2333 !important;
+  border-color: #2a3850 !important;
+  color: #e2e8f0 !important;
+}
+body.dark-mode .menu-card .mi-box,
+body.dark-mode [class*="rpt-icon"] {
+  background: #222d3f !important;
+}
 
 /* Hide particle canvas always */
 #it-bg-canvas { display:none !important; }
 
-/* Accent color consistency */
+/* Accent color */
 a { color:var(--accent); }
 a:hover { color:var(--accent-dim); }
 </style>
@@ -6341,187 +6981,154 @@ a:hover { color:var(--accent-dim); }
 
 
 <style id="custom-theme-patch">
-/* ===== WHITE THEME OVERRIDE ===== */
+/* ===================================================================
+   WHITE / LIGHT THEME PATCH  — only applies when NOT in dark mode
+   =================================================================== */
 
-/* Body & layout backgrounds */
-body { background: #f8fafc !important; color: #1e293b !important; }
-#app-layout { background: #f8fafc !important; }
-main { background: transparent !important; }
-#bg-hero, #it-bg-canvas { display: none !important; }
+body:not(.dark-mode) #bg-hero,
+body:not(.dark-mode) #it-bg-canvas { display: none !important; }
+
+body:not(.dark-mode) { background: #f8fafc !important; color: #1e293b !important; }
+body:not(.dark-mode) #app-layout { background: #f8fafc !important; }
+body:not(.dark-mode) main { background: transparent !important; }
 
 /* Header */
-#app-header {
+body:not(.dark-mode) #app-header {
   background: #ffffff !important;
   border-bottom: 1px solid #e2e8f0 !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
 }
-#app-header, #app-header * { color: #1e293b !important; }
+body:not(.dark-mode) #app-header,
+body:not(.dark-mode) #app-header * { color: #1e293b !important; }
 
 /* Nav sidebar */
-#app-layout nav, nav, nav > div, .nav-wrap {
+body:not(.dark-mode) #app-layout nav,
+body:not(.dark-mode) nav,
+body:not(.dark-mode) nav > div {
   background: #ffffff !important;
   border-right: 1px solid #e2e8f0 !important;
 }
-nav button, nav a, .nav-item {
-  color: #374151 !important;
-  background: transparent !important;
-}
-nav button:hover, nav a:hover, .nav-item:hover {
-  background: #f9fafb !important;
-  color: #111827 !important;
-}
-nav button.active, .nav-item.active {
-  background: #f0fdf4 !important;
-  color: #16a34a !important;
-}
-nav span, .nav-lbl { color: #9ca3af !important; }
-nav svg path, nav svg rect, nav svg circle, nav svg polyline, nav svg line {
-  stroke: #6b7280 !important;
-}
+body:not(.dark-mode) nav button,
+body:not(.dark-mode) nav a,
+body:not(.dark-mode) .nav-item { color: #374151 !important; background: transparent !important; }
+body:not(.dark-mode) nav button:hover,
+body:not(.dark-mode) nav a:hover,
+body:not(.dark-mode) .nav-item:hover { background: #f9fafb !important; color: #111827 !important; }
+body:not(.dark-mode) nav button.active,
+body:not(.dark-mode) .nav-item.active { background: #f0fdf4 !important; color: #16a34a !important; }
+body:not(.dark-mode) nav span,
+body:not(.dark-mode) .nav-lbl { color: #9ca3af !important; }
+body:not(.dark-mode) nav svg path,
+body:not(.dark-mode) nav svg rect,
+body:not(.dark-mode) nav svg circle,
+body:not(.dark-mode) nav svg line { stroke: #6b7280 !important; }
 
-/* All cards, panels, surfaces - EVERY dark card must become white */
-.stat-card, .kpi-card, .dash-card, .report-card, .menu-card,
-.card, .panel, .box, .widget, .section-card, .form-section,
-[class*="card"]:not([class*="nav"]):not([class*="btn"]):not(.card-title) {
+/* Cards */
+body:not(.dark-mode) .stat-card,
+body:not(.dark-mode) .kpi-card,
+body:not(.dark-mode) .dash-card,
+body:not(.dark-mode) .report-card,
+body:not(.dark-mode) .card,
+body:not(.dark-mode) [class*="card"]:not([class*="nav"]):not([class*="btn"]):not(.card-title) {
   background: #ffffff !important;
   color: #1e293b !important;
   border: 1.5px solid #e2e8f0 !important;
   box-shadow: 0 2px 12px rgba(0,0,0,0.07) !important;
   border-radius: 16px !important;
 }
-/* page/section headings — NO border */
-.page-hd, .sec-hd, [class*="page-hd"], [class*="page-header"],
-[id$="-hd"], h1, h2, h3 {
+body:not(.dark-mode) .page-hd,
+body:not(.dark-mode) .sec-hd,
+body:not(.dark-mode) [class*="page-hd"],
+body:not(.dark-mode) [id$="-hd"],
+body:not(.dark-mode) h1,
+body:not(.dark-mode) h2,
+body:not(.dark-mode) h3 {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
 
-/* Catch-all for dark rgba/hex backgrounds */
-[style*="background: rgba("] { background: #ffffff !important; }
-[style*="background:rgba("] { background: #ffffff !important; }
-[style*="background: rgb(0"] { background: #ffffff !important; }
-[style*="background: #0"] { background: #ffffff !important; }
-[style*="background: #1"] { background: #ffffff !important; }
-[style*="background: #2"] { background: #f8fafc !important; }
-[style*="background:#0"] { background: #ffffff !important; }
-[style*="background:#1"] { background: #ffffff !important; }
-[style*="background:#2"] { background: #f8fafc !important; }
+/* Catch-all for dark inline styles */
+body:not(.dark-mode) [style*="background: rgba("] { background: #ffffff !important; }
+body:not(.dark-mode) [style*="background:rgba("]  { background: #ffffff !important; }
+body:not(.dark-mode) [style*="background: rgb(0"]  { background: #ffffff !important; }
+body:not(.dark-mode) [style*="background: #0"]  { background: #ffffff !important; }
+body:not(.dark-mode) [style*="background: #1"]  { background: #ffffff !important; }
+body:not(.dark-mode) [style*="background: #2"]  { background: #f8fafc !important; }
+body:not(.dark-mode) [style*="background:#0"]  { background: #ffffff !important; }
+body:not(.dark-mode) [style*="background:#1"]  { background: #ffffff !important; }
+body:not(.dark-mode) [style*="background:#2"]  { background: #f8fafc !important; }
 
-/* ALL text must be dark */
-*, *::before, *::after {
-  color: inherit;
-}
-body, div, span, p, h1, h2, h3, h4, h5, h6,
-label, td, th, li, a:not(.btn):not([class*="btn"]):not(button),
-strong, em, small, caption, figcaption,
-.title, .subtitle, .label, .value, .desc,
-[class*="title"], [class*="label"], [class*="value"],
-[class*="text"], [class*="name"], [class*="desc"],
-[class*="stat"], [class*="count"], [class*="num"] {
-  color: #1e293b !important;
-}
-
-/* Muted text */
-.text-muted, .sub, .hint, .caption,
-[class*="muted"], [class*="hint"], [class*="sub"],
-[class*="secondary"], [class*="description"] {
-  color: #64748b !important;
-}
+/* ALL text dark */
+body:not(.dark-mode) body,
+body:not(.dark-mode) div,
+body:not(.dark-mode) span,
+body:not(.dark-mode) p,
+body:not(.dark-mode) h1,
+body:not(.dark-mode) h2,
+body:not(.dark-mode) h3,
+body:not(.dark-mode) h4,
+body:not(.dark-mode) h5,
+body:not(.dark-mode) h6,
+body:not(.dark-mode) label,
+body:not(.dark-mode) td,
+body:not(.dark-mode) th,
+body:not(.dark-mode) li,
+body:not(.dark-mode) strong,
+body:not(.dark-mode) em,
+body:not(.dark-mode) small { color: #1e293b !important; }
+body:not(.dark-mode) .text-muted,
+body:not(.dark-mode) [class*="muted"],
+body:not(.dark-mode) [class*="hint"],
+body:not(.dark-mode) [class*="secondary"] { color: #64748b !important; }
 
 /* Tables */
-table { background: #ffffff !important; border-color: #e2e8f0 !important; }
-thead, thead tr { background: #f8fafc !important; }
-th { background: #f8fafc !important; color: #374151 !important; border-color: #e2e8f0 !important; }
-td { color: #1e293b !important; border-color: #e2e8f0 !important; background: #ffffff !important; }
-tr:hover td { background: #f8fafc !important; }
+body:not(.dark-mode) table { background: #ffffff !important; border-color: #e2e8f0 !important; }
+body:not(.dark-mode) thead,
+body:not(.dark-mode) thead tr { background: #f8fafc !important; }
+body:not(.dark-mode) th { background: #f8fafc !important; color: #374151 !important; border-color: #e2e8f0 !important; }
+body:not(.dark-mode) td { color: #1e293b !important; border-color: #e2e8f0 !important; background: #ffffff !important; }
+body:not(.dark-mode) tr:hover td { background: #f8fafc !important; }
 
-/* Inputs, selects, textareas */
-input:not([type="radio"]):not([type="checkbox"]):not([type="color"]),
-select, textarea {
-  background: #ffffff !important;
-  color: #1e293b !important;
-  border-color: #d1d5db !important;
+/* Inputs */
+body:not(.dark-mode) input:not([type="radio"]):not([type="checkbox"]):not([type="color"]),
+body:not(.dark-mode) select,
+body:not(.dark-mode) textarea {
+  background: #ffffff !important; color: #1e293b !important; border-color: #d1d5db !important;
 }
-input::placeholder, textarea::placeholder { color: #9ca3af !important; }
-input:focus, select:focus, textarea:focus {
+body:not(.dark-mode) input::placeholder,
+body:not(.dark-mode) textarea::placeholder { color: #9ca3af !important; }
+body:not(.dark-mode) input:focus,
+body:not(.dark-mode) select:focus,
+body:not(.dark-mode) textarea:focus {
   border-color: #16a34a !important;
   box-shadow: 0 0 0 3px rgba(22,163,74,0.15) !important;
 }
-label { color: #374151 !important; }
+body:not(.dark-mode) label { color: #374151 !important; }
 
 /* Modals */
-.modal, .modal-content, [class*="modal"] > div,
-.modal-ov > div, .dialog {
-  background: #ffffff !important;
-  color: #1e293b !important;
-  border-color: #e2e8f0 !important;
-}
-.modal-hd, [class*="modal-hd"], [class*="modal-header"] {
-  background: #f8fafc !important;
-  color: #1e293b !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-}
-.modal-ov, .overlay { background: rgba(0,0,0,0.4) !important; }
+body:not(.dark-mode) .modal,
+body:not(.dark-mode) .modal-content,
+body:not(.dark-mode) .modal-ov > div { background: #ffffff !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
+body:not(.dark-mode) .modal-hd,
+body:not(.dark-mode) [class*="modal-hd"] { background: #f8fafc !important; color: #1e293b !important; border-bottom: 1px solid #e2e8f0 !important; }
+body:not(.dark-mode) .modal-ov { background: rgba(0,0,0,0.4) !important; }
 
-/* Dropdowns, tooltips */
-.dropdown, [class*="dropdown"], .tooltip, [class*="tooltip"] {
-  background: #ffffff !important;
-  color: #1e293b !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
-}
-
-/* Tabs */
-.tab, [class*="tab-item"], [class*="tab-btn"] {
-  color: #64748b !important;
-  background: transparent !important;
-}
-.tab.active, [class*="tab-item"].active, [class*="tab-btn"].active {
-  color: #16a34a !important;
-  border-color: #16a34a !important;
-}
-
-/* Filter/filter row */
-.filter-row, .filter-bar, [class*="filter"] {
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-}
-
-/* Section headers */
-.sec-hd, [class*="sec-hd"], .section-header, [class*="section-hd"] {
-  color: #1e293b !important;
-  border-color: #e2e8f0 !important;
-}
-
-/* Badges & status pills */
-.badge, [class*="badge"], .pill, .tag, [class*="status"] {
-  font-weight: 600;
-}
-
-/* Toast / alerts */
-.toast, [class*="toast"], .alert, [class*="alert"] {
-  color: #1e293b !important;
-}
+/* Dropdowns */
+body:not(.dark-mode) .dropdown,
+body:not(.dark-mode) [class*="dropdown"] { background: #ffffff !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
 
 /* Scrollbars */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+body:not(.dark-mode) ::-webkit-scrollbar { width: 6px; height: 6px; }
+body:not(.dark-mode) ::-webkit-scrollbar-track { background: #f1f5f9; }
+body:not(.dark-mode) ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+body:not(.dark-mode) ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Fix white text on inline dark styles - target common patterns */
-[style*="color:#fff"], [style*="color: #fff"],
-[style*="color:white"], [style*="color: white"],
-[style*="color:#ffffff"], [style*="color: #ffffff"],
-[style*="color:rgb(255"], [style*="color: rgb(255"] {
-  color: #1e293b !important;
-}
-[style*="color:#d4f5e2"], [style*="color: #d4f5e2"],
-[style*="color:#a8dfc0"], [style*="color: #a8dfc0"],
-[style*="color:var(--text)"], [style*="color: var(--text)"] {
-  color: #1e293b !important;
-}
+/* Fix white text on inline dark styles */
+body:not(.dark-mode) [style*="color:#fff"],
+body:not(.dark-mode) [style*="color: #fff"],
+body:not(.dark-mode) [style*="color:white"],
+body:not(.dark-mode) [style*="color:#ffffff"] { color: #1e293b !important; }
 
 /* Keep login screen unaffected */
 #screen-login, #screen-login * { all: revert; }
@@ -6531,81 +7138,134 @@ label { color: #374151 !important; }
 }
 #screen-login.hidden, .screen.hidden { display: none !important; }
 
-/* ===== GLOBAL TEXT = BLACK everywhere in main app ===== */
-/* Exclude login screen */
-#app-layout *,
-#app-header *,
-main *,
-.modal *,
-[id^="sec-"] *,
-[id^="modal-"] * {
-  color: #111827 !important;
-}
-/* Exceptions - keep colored items */
-.btn-primary, .btn-primary * { color: #031a0e !important; }
-.big-btn, .big-btn * { color: #031a0e !important; }
-[class*="btn-success"], [class*="btn-success"] * { color: #ffffff !important; }
-.status-pending { color: #92400e !important; }
-.status-issued  { color: #065f46 !important; }
-.status-cancel  { color: #991b1b !important; }
-.status-done    { color: #1e3a5f !important; }
-.badge { color: #ffffff !important; }
-/* Nav text */
-#app-layout nav *, nav * { color: #374151 !important; }
-#app-layout nav button.active, nav button.active { color: #111827 !important; }
-/* Keep accent colors for links */
-a[style*="color:var(--accent)"] { color: #00864a !important; }
-/* KPI numbers should be dark */
-.kpi-val, [class*="kpi"] { color: #111827 !important; }
-/* Table */
-th { color: #374151 !important; background: #f9fafb !important; }
-td { color: #111827 !important; }
-/* Heading/title */
-h1,h2,h3,h4,h5,h6,
-.sec-title, .page-title, [class*="title"] { color: #111827 !important; }
-/* Muted text */
-.text-muted, [class*="muted"] { color: #64748b !important; }
-/* Input inside main app */
-#app-layout input, #app-layout select, #app-layout textarea {
-  color: #111827 !important;
-  background: #ffffff !important;
-  border-color: #d1d5db !important;
-}
-#app-layout input::placeholder { color: #9ca3af !important; }
+/* ── GLOBAL TEXT = BLACK in light mode ── */
+body:not(.dark-mode) #app-layout *,
+body:not(.dark-mode) #app-header *,
+body:not(.dark-mode) main *,
+body:not(.dark-mode) .modal *,
+body:not(.dark-mode) [id^="sec-"] *,
+body:not(.dark-mode) [id^="modal-"] * { color: #111827 !important; }
 
-/* ── Remove white background behind page title ── */
-.page-hd, .sec-hd, [class*="page-header"], [class*="section-header"] {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+/* Exceptions */
+body:not(.dark-mode) .btn-primary, body:not(.dark-mode) .btn-primary * { color: #031a0e !important; }
+body:not(.dark-mode) .big-btn, body:not(.dark-mode) .big-btn * { color: #031a0e !important; }
+body:not(.dark-mode) [class*="btn-success"], body:not(.dark-mode) [class*="btn-success"] * { color: #ffffff !important; }
+body:not(.dark-mode) .status-pending { color: #92400e !important; }
+body:not(.dark-mode) .status-issued  { color: #065f46 !important; }
+body:not(.dark-mode) .status-cancel  { color: #991b1b !important; }
+body:not(.dark-mode) .status-done    { color: #1e3a5f !important; }
+body:not(.dark-mode) .badge { color: #ffffff !important; }
+body:not(.dark-mode) #app-layout nav *, body:not(.dark-mode) nav * { color: #374151 !important; }
+body:not(.dark-mode) #app-layout nav button.active, body:not(.dark-mode) nav button.active { color: #111827 !important; }
+body:not(.dark-mode) .kpi-val, body:not(.dark-mode) [class*="kpi"] { color: #111827 !important; }
+body:not(.dark-mode) th { color: #374151 !important; background: #f9fafb !important; }
+body:not(.dark-mode) td { color: #111827 !important; }
+body:not(.dark-mode) h1, body:not(.dark-mode) h2, body:not(.dark-mode) h3,
+body:not(.dark-mode) h4, body:not(.dark-mode) h5, body:not(.dark-mode) h6 { color: #111827 !important; }
+body:not(.dark-mode) .text-muted, body:not(.dark-mode) [class*="muted"] { color: #64748b !important; }
+body:not(.dark-mode) #app-layout input, body:not(.dark-mode) #app-layout select, body:not(.dark-mode) #app-layout textarea {
+  color: #111827 !important; background: #ffffff !important; border-color: #d1d5db !important;
 }
 
-/* ── Additional dark-bg fixes ── */
-.metric { background: #ffffff !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-.metrics { background: transparent !important; }
-#app-layout, #app-main, main { background: #f8fafc !important; max-width: 100% !important; }
-nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none !important; }
-#app-header, header { background: #ffffff !important; backdrop-filter: none !important; }
-.dot-menu-btn { background: transparent !important; }
-.dot-dd-item.danger:hover { background: #fee2e2 !important; color: #dc2626 !important; }
+/* Page title area */
+body:not(.dark-mode) .page-hd,
+body:not(.dark-mode) .sec-hd,
+body:not(.dark-mode) [class*="page-header"],
+body:not(.dark-mode) [class*="section-header"] {
+  background: transparent !important; box-shadow: none !important; border: none !important;
+}
 
-/* report section cards */
-[id^="sec-"] div[style*="background:rgba(17"] { background: #ffffff !important; }
-[id^="sec-"] div[style*="background: rgba(17"] { background: #ffffff !important; }
+/* Additional fixes */
+body:not(.dark-mode) .metric { background: #ffffff !important; }
+body:not(.dark-mode) #app-layout, body:not(.dark-mode) main { background: #f8fafc !important; }
+body:not(.dark-mode) nav, body:not(.dark-mode) header { background: #ffffff !important; }
+body:not(.dark-mode) .dot-menu-btn { background: transparent !important; }
+body:not(.dark-mode) .dot-dd-item.danger:hover { background: #fee2e2 !important; color: #dc2626 !important; }
+body:not(.dark-mode) .rform-header { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important; }
+body:not(.dark-mode) .rform-header * { color: #ffffff !important; }
+body:not(.dark-mode) .srp-dropdown { background: #ffffff !important; }
+body:not(.dark-mode) .srp-option { color: #2d3a4a !important; }
+body:not(.dark-mode) .srp-option:hover { background: #eef4ff !important; }
 
-/* login screen bg should remain dark */
-/* login bg is set via login-bg-patch */
+/* ===================================================================
+   DARK MODE — override everything with proper dark colors
+   =================================================================== */
+body.dark-mode #app-layout *,
+body.dark-mode main *,
+body.dark-mode [id^="sec-"] * { color: var(--text) !important; }
 
-/* rform header (repair modal) — keep blue gradient */
-.rform-header { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important; }
-.rform-header * { color: #ffffff !important; }
+/* Specific overrides for dark mode elements */
+body.dark-mode .text-muted,
+body.dark-mode [class*="muted"],
+body.dark-mode .nav-lbl,
+body.dark-mode .page-hd p,
+body.dark-mode .dash-banner-content p { color: var(--text-muted) !important; }
 
-/* srp-select dropdown bg */
-.srp-dropdown { background: #ffffff !important; }
-.srp-option { color: #2d3a4a !important; }
-.srp-option:hover { background: #eef4ff !important; }
+body.dark-mode .badge,
+body.dark-mode [class*="badge"].b-pending,
+body.dark-mode [class*="badge"].b-issued,
+body.dark-mode [class*="badge"].b-cancel,
+body.dark-mode [class*="badge"].b-done { color: inherit !important; }
+
+body.dark-mode .btn-primary, body.dark-mode .btn-primary *,
+body.dark-mode .big-btn, body.dark-mode .big-btn * { color: #fff !important; }
+body.dark-mode .nav-badge { color: #fff !important; }
+body.dark-mode .status-pending { color: #fbbf24 !important; }
+body.dark-mode .status-issued  { color: #34d399 !important; }
+body.dark-mode .status-cancel  { color: #f87171 !important; }
+body.dark-mode .rform-header,
+body.dark-mode .rform-header * { background: linear-gradient(135deg,#1e3a6e,#2563eb) !important; color: #fff !important; }
+body.dark-mode .dot-dd-item.danger:hover { background: #450a0a !important; color: #f87171 !important; }
+
+/* Banner headline stays light */
+body.dark-mode .dash-banner-content h1 { color: #e2e8f0 !important; }
+
+/* Page headings */
+body.dark-mode .page-hd h1,
+body.dark-mode .sec-title { color: #e2e8f0 !important; }
+
+/* KPI numbers */
+body.dark-mode .kpi-val,
+body.dark-mode [class*="kpi"] { color: #e2e8f0 !important; }
+
+/* Stat card numbers */
+body.dark-mode .stat-card .stat-num,
+body.dark-mode .dash-card .kpi-val { color: #e2e8f0 !important; }
+
+/* Nav items */
+body.dark-mode nav *, body.dark-mode #app-layout nav * { color: #94a3b8 !important; }
+body.dark-mode nav .nav-item.active,
+body.dark-mode nav .nav-item.active * { color: #93c5fd !important; }
+body.dark-mode nav .nav-item:hover,
+body.dark-mode nav .nav-item:hover * { color: #e2e8f0 !important; }
+
+/* Header elements */
+body.dark-mode #app-header * { color: var(--text) !important; }
+body.dark-mode #app-header .hd-date { color: var(--text-muted) !important; }
+body.dark-mode .u-name { color: #e2e8f0 !important; }
+body.dark-mode .u-role { color: #64748b !important; }
+
+/* Srp dropdown */
+body.dark-mode .srp-dropdown { background: #1c2333 !important; }
+body.dark-mode .srp-option { color: #e2e8f0 !important; }
+body.dark-mode .srp-option:hover { background: #222d3f !important; }
+
+/* Inline style overrides for dark mode */
+body.dark-mode [style*="color:#fff"],
+body.dark-mode [style*="color: #fff"],
+body.dark-mode [style*="color:white"],
+body.dark-mode [style*="color:#ffffff"] { color: #e2e8f0 !important; }
+
+/* Dashboard banner area */
+body.dark-mode .dash-banner { background: linear-gradient(135deg,#1a3254 0%,#0f1e36 100%) !important; }
+body.dark-mode .dash-banner * { color: #e2e8f0 !important; }
+body.dark-mode .dash-banner p { color: #94a3b8 !important; }
+
+/* inline rgba backgrounds — in dark mode show surface color */
+body.dark-mode [style*="background: rgba("] { background: #1c2333 !important; }
+body.dark-mode [style*="background:rgba("]  { background: #1c2333 !important; }
+body.dark-mode [style*="background: rgb(0"]  { background: #1c2333 !important; }
+
 </style>
 
 
@@ -6932,55 +7592,40 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
 
     <!-- Step 1: อีเมล -->
     <div id="fp-step1">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem;line-height:1.6">กรอกอีเมลองค์กรของท่าน ระบบจะส่งรหัส OTP 6 หลักเพื่อยืนยันตัวตน</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem;line-height:1.6">กรอกอีเมลองค์กรของท่าน ระบบจะตรวจสอบว่าตรงกับบัญชีผู้ใช้ในระบบหรือไม่ หากตรงกันจะให้ตั้งรหัสผ่านใหม่ได้ทันที</p>
       <div class="fld">
         <label>อีเมลองค์กร</label>
         <input type="email" id="fp-email" placeholder="name@company.com" autocomplete="email" onkeydown="if(event.key==='Enter') fpStep1Next()">
       </div>
       <div id="fp-err1" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
-      <button class="big-btn" id="fp-btn1" onclick="fpStep1Next()">ส่ง OTP ไปยังอีเมล</button>
+      <button class="big-btn" id="fp-btn1" onclick="fpStep1Next()">ยืนยันอีเมล</button>
       <div style="text-align:center;margin-top:.75rem">
         <a href="javascript:void(0)" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="hideForgotBox()">← กลับเข้าสู่ระบบ</a>
       </div>
     </div>
 
-    <!-- Step 2: กรอก OTP -->
+    <!-- Step 2: ตั้งรหัสผ่านใหม่ -->
     <div id="fp-step2" style="display:none">
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:1rem;font-size:13px;color:#166534;line-height:1.6">
-        📧 ส่งรหัส OTP ไปยัง <strong id="fp-confirmed-email"></strong> แล้ว<br>
-        กรุณาตรวจสอบกล่องจดหมาย (และโฟลเดอร์ Spam) ภายใน 10 นาที
+        ✅ ยืนยันอีเมล <strong id="fp-confirmed-email"></strong> สำเร็จ — กำหนดรหัสผ่านใหม่ได้เลย
       </div>
-      <div class="fld">
-        <label>รหัส OTP 6 หลัก</label>
-        <input type="text" id="fp-otp" placeholder="xxxxxx" maxlength="6" autocomplete="one-time-code"
-          style="letter-spacing:.25em;font-size:20px;text-align:center;font-weight:700"
-          onkeydown="if(event.key==='Enter') fpStep2Next()" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-      </div>
-      <div id="fp-err2" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
-      <button class="big-btn" onclick="fpStep2Next()">ยืนยัน OTP</button>
-      <div style="text-align:center;margin-top:.75rem;display:flex;justify-content:space-between;font-size:13px">
-        <a href="javascript:void(0)" style="color:var(--accent);text-decoration:none" onclick="fpReset()">← ย้อนกลับ</a>
-        <a href="javascript:void(0)" id="fp-resend-link" style="color:var(--accent);text-decoration:none" onclick="fpResendOtp()">ส่งรหัสใหม่</a>
-      </div>
-    </div>
-
-    <!-- Step 3: ตั้งรหัสผ่านใหม่ -->
-    <div id="fp-step3" style="display:none">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:.75rem">ยืนยันตัวตนสำเร็จ กำหนดรหัสผ่านใหม่ได้เลย</p>
       <div class="fld">
         <label>รหัสผ่านใหม่</label>
         <input type="password" id="fp-newpass" placeholder="อย่างน้อย 4 ตัวอักษร" autocomplete="new-password">
       </div>
       <div class="fld">
         <label>ยืนยันรหัสผ่านใหม่</label>
-        <input type="password" id="fp-newpass2" placeholder="กรอกรหัสผ่านอีกครั้ง" autocomplete="new-password" onkeydown="if(event.key==='Enter') fpStep3Next()">
+        <input type="password" id="fp-newpass2" placeholder="กรอกรหัสผ่านอีกครั้ง" autocomplete="new-password" onkeydown="if(event.key==='Enter') fpStep2Next()">
       </div>
-      <div id="fp-err3" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
-      <button class="big-btn" onclick="fpStep3Next()">บันทึกรหัสผ่าน</button>
+      <div id="fp-err2" style="display:none;color:#dc2626;font-size:13px;margin-bottom:.5rem"></div>
+      <button class="big-btn" onclick="fpStep2Next()">บันทึกรหัสผ่าน</button>
+      <div style="text-align:center;margin-top:.75rem">
+        <a href="javascript:void(0)" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="fpReset()">← ย้อนกลับ</a>
+      </div>
     </div>
 
-    <!-- Step 4: สำเร็จ -->
-    <div id="fp-step4" style="display:none;text-align:center">
+    <!-- Step 3: สำเร็จ -->
+    <div id="fp-step3" style="display:none;text-align:center">
       <div style="font-size:48px;margin-bottom:.5rem">✅</div>
       <div style="font-size:16px;font-weight:700;color:#16a34a;margin-bottom:.5rem">เปลี่ยนรหัสผ่านสำเร็จ</div>
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem">กลับไปเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย</p>
@@ -6991,9 +7636,7 @@ nav, #app-nav, .nav-wrap { background: #ffffff !important; backdrop-filter: none
 
 <script>
 /* ──────────────────────────────────────────────
-   FORGOT PASSWORD — OTP Flow
-   OTP สร้างและตรวจสอบฝั่ง server (server.js) ผ่าน Outlook/M365 SMTP จริง
-   ฝั่ง client เป็นเพียงตัวเรียก API เท่านั้น ไม่เก็บ OTP หรือ hash ใดๆ
+   FORGOT PASSWORD — ยืนยันด้วยอีเมล แล้วเปลี่ยนรหัสผ่านได้ทันที (ไม่มี OTP)
 ────────────────────────────────────────────── */
 
 function showForgotBox() {
@@ -7006,30 +7649,27 @@ function hideForgotBox() {
   document.getElementById('screen-login').style.display = '';
 }
 function fpReset() {
-  ['fp-step2','fp-step3','fp-step4'].forEach(function(id){
+  ['fp-step2','fp-step3'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.style.display='none';
   });
   var s1=document.getElementById('fp-step1'); if(s1) s1.style.display='';
-  ['fp-err1','fp-err2','fp-err3'].forEach(function(id){
+  ['fp-err1','fp-err2'].forEach(function(id){
     var e=document.getElementById(id); if(e){e.style.display='none';e.textContent='';}
   });
-  ['fp-email','fp-otp','fp-newpass','fp-newpass2'].forEach(function(id){
+  ['fp-email','fp-newpass','fp-newpass2'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.value='';
   });
-  window._fpUser   = null;
+  window._fpUser = null;
 }
-
-/* ฐาน URL ของ API (เปลี่ยนตามที่ deploy จริง ถ้า frontend อยู่คนละโดเมนกับ server.js) */
-var SRP_API_BASE = window.SRP_API_BASE || '';
 
 /* แสดง step */
 function _fpShow(stepId) {
-  ['fp-step1','fp-step2','fp-step3','fp-step4'].forEach(function(id){
+  ['fp-step1','fp-step2','fp-step3'].forEach(function(id){
     document.getElementById(id).style.display = (id===stepId) ? '' : 'none';
   });
 }
 
-/* Step 1 → ตรวจ email + ขอให้ server ส่ง OTP จริง */
+/* Step 1 → ตรวจสอบว่าอีเมลตรงกับบัญชีผู้ใช้ในระบบหรือไม่ */
 async function fpStep1Next() {
   var email = (document.getElementById('fp-email').value||'').trim().toLowerCase();
   var e1 = document.getElementById('fp-err1');
@@ -7043,129 +7683,25 @@ async function fpStep1Next() {
   if(!match){ e1.textContent='ไม่พบบัญชีที่ผูกกับอีเมลนี้ กรุณาติดต่อทีม IT'; e1.style.display='block'; return; }
 
   window._fpUser = match;
-  var btn = document.getElementById('fp-btn1');
-  btn.disabled = true; btn.textContent = 'กำลังส่ง OTP...';
 
-  try {
-    var resp = await fetch(SRP_API_BASE + '/api/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await resp.json();
-
-    if (!resp.ok || !data.ok) {
-      btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
-      if (data.error === 'smtp_not_configured') {
-        e1.textContent = 'ระบบยังไม่ได้ตั้งค่าการส่งอีเมล กรุณาติดต่อผู้ดูแลระบบ';
-      } else {
-        e1.textContent = 'ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
-      }
-      e1.style.display = 'block';
-      return;
-    }
-
-    document.getElementById('fp-confirmed-email').textContent = email;
-    btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
-    _fpShow('fp-step2');
-    document.getElementById('fp-otp').focus();
-    _fpStartResendCountdown();
-  } catch(err) {
-    btn.disabled = false; btn.textContent = 'ส่ง OTP ไปยังอีเมล';
-    e1.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
-    e1.style.display = 'block';
-  }
+  /* ยืนยันว่าเป็นอีเมลของตัวเองแล้ว → เด้งไปตั้งรหัสผ่านใหม่ได้เลย (ไม่ส่ง OTP) */
+  document.getElementById('fp-confirmed-email').textContent = email;
+  _fpShow('fp-step2');
+  document.getElementById('fp-newpass').focus();
 }
 
-/* countdown ปุ่มส่งใหม่ */
-function _fpStartResendCountdown() {
-  var link = document.getElementById('fp-resend-link');
-  var sec  = 60;
-  link.style.pointerEvents='none'; link.style.color='#94a3b8';
-  link.textContent = 'ส่งรหัสใหม่ (' + sec + ')';
-  var t = setInterval(function(){
-    sec--;
-    if(sec<=0){
-      clearInterval(t);
-      link.style.pointerEvents=''; link.style.color='';
-      link.textContent = 'ส่งรหัสใหม่';
-    } else {
-      link.textContent = 'ส่งรหัสใหม่ (' + sec + ')';
-    }
-  }, 1000);
-}
-
-/* ส่งใหม่ */
-async function fpResendOtp() {
-  var email = (document.getElementById('fp-email').value||'').trim().toLowerCase()
-           || ((window._fpUser||{}).email||'');
-  if(!email) return;
-  try {
-    var resp = await fetch(SRP_API_BASE + '/api/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await resp.json();
-    document.getElementById('fp-otp').value = '';
-    _fpStartResendCountdown();
-    if (resp.ok && data.ok) {
-      if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
-    } else {
-      if(typeof toast==='function') toast('⚠️ ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่','error',4000);
-    }
-  } catch(err) {
-    if(typeof toast==='function') toast('⚠️ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้','error',4000);
-  }
-}
-
-/* Step 2 → ส่ง OTP ไปให้ server ตรวจสอบ (server เป็นคนเก็บ OTP จริง ปลอดภัยกว่า client-side hash) */
+/* Step 2 → บันทึกรหัสใหม่ */
 async function fpStep2Next() {
-  var otp = (document.getElementById('fp-otp').value||'').trim();
-  var e2  = document.getElementById('fp-err2');
-  e2.style.display='none'; e2.textContent='';
-
-  if(!otp || otp.length!==6){ e2.textContent='กรุณากรอกรหัส OTP 6 หลัก'; e2.style.display='block'; return; }
-
-  var email = (document.getElementById('fp-email').value||'').trim().toLowerCase();
-
-  try {
-    var resp = await fetch(SRP_API_BASE + '/api/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, otp: otp })
-    });
-    var data = await resp.json();
-
-    if (!resp.ok || !data.ok) {
-      if (data.error === 'expired') e2.textContent = 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่';
-      else if (data.error === 'mismatch') e2.textContent = 'รหัส OTP ไม่ถูกต้อง';
-      else e2.textContent = 'ไม่พบคำขอ OTP กรุณาขอรหัสใหม่อีกครั้ง';
-      e2.style.display = 'block';
-      return;
-    }
-
-    /* ผ่าน → ไป step 3 */
-    _fpShow('fp-step3');
-    document.getElementById('fp-newpass').focus();
-  } catch(err) {
-    e2.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
-    e2.style.display = 'block';
-  }
-}
-
-/* Step 3 → บันทึกรหัสใหม่ */
-async function fpStep3Next() {
   var p1 = document.getElementById('fp-newpass').value;
   var p2 = document.getElementById('fp-newpass2').value;
-  var e3 = document.getElementById('fp-err3');
-  e3.style.display='none'; e3.textContent='';
+  var e2 = document.getElementById('fp-err2');
+  e2.style.display='none'; e2.textContent='';
 
-  if(p1.length<4){ e3.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; e3.style.display='block'; return; }
-  if(p1!==p2){ e3.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน'; e3.style.display='block'; return; }
+  if(p1.length<4){ e2.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; e2.style.display='block'; return; }
+  if(p1!==p2){ e2.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน'; e2.style.display='block'; return; }
 
   var u = window._fpUser;
-  if(!u){ e3.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่'; e3.style.display='block'; return; }
+  if(!u){ e2.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่'; e2.style.display='block'; return; }
 
   var hashed = await srpHash(p1);
   u.pass   = hashed;
@@ -7177,9 +7713,10 @@ async function fpStep3Next() {
   window.users = src;
   try{ if(typeof save==='function') save(); else localStorage.setItem('srp_users',JSON.stringify(src)); }catch(e){}
 
-  _fpShow('fp-step4');
+  _fpShow('fp-step3');
 }
 </script>
+
 
 <!-- ═══ MODAL: Forgot Password ═══ -->
 <div class="modal-ov hidden" id="modal-forgot">
@@ -7188,42 +7725,26 @@ async function fpStep3Next() {
 
     <!-- STEP 1: กรอกอีเมล -->
     <div id="forgot-step1" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
-      <p style="margin:0 0 .75rem">กรุณากรอก<strong>อีเมลองค์กร</strong> ระบบจะส่งรหัส OTP 6 หลักเพื่อยืนยันตัวตน</p>
+      <p style="margin:0 0 .75rem">กรุณากรอก<strong>อีเมลองค์กร</strong> ที่ผูกกับบัญชีของคุณ ระบบจะตรวจสอบว่าตรงกับบัญชีผู้ใช้ในระบบหรือไม่ หากตรงกันจะให้ตั้งรหัสผ่านใหม่ได้ทันที</p>
       <input type="email" id="forgot-email" placeholder="name@company.com"
         style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="email"
         onkeydown="if(event.key==='Enter') mfpStep1Next()">
       <div id="forgot-err1" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
     </div>
 
-    <!-- STEP 2: กรอก OTP -->
+    <!-- STEP 2: ตั้งรหัสผ่านใหม่ -->
     <div id="forgot-step2" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:.75rem;color:#166534">
-        📧 ส่ง OTP ไปยัง <strong id="forgot-confirmed-email"></strong> แล้ว<br>
-        <span style="font-size:12px">กรุณาตรวจสอบกล่องจดหมาย (และ Spam) ภายใน 10 นาที</span>
-      </div>
-      <p style="margin:0 0 .4rem;font-weight:600">รหัส OTP 6 หลัก</p>
-      <input type="text" id="forgot-otp" placeholder="xxxxxx" maxlength="6" autocomplete="one-time-code"
-        style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:22px;text-align:center;letter-spacing:.3em;font-weight:700;box-sizing:border-box"
-        onkeydown="if(event.key==='Enter') mfpStep2Next()" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-      <div id="forgot-err2" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
-      <div style="margin-top:.5rem;font-size:12px;color:#64748b">
-        ไม่ได้รับ? <a href="javascript:void(0)" id="forgot-resend-link" onclick="mfpResend()" style="color:var(--primary,#2563eb)">ส่งรหัสใหม่</a>
-      </div>
-    </div>
-
-    <!-- STEP 3: ตั้งรหัสผ่านใหม่ -->
-    <div id="forgot-step3" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px">
-      <p style="margin:0 0 .5rem;color:#16a34a;font-weight:600">✅ ยืนยัน OTP สำเร็จ — กำหนดรหัสผ่านใหม่ได้เลย</p>
+      <p style="margin:0 0 .5rem;color:#16a34a;font-weight:600">✅ ยืนยันอีเมลสำเร็จ (<strong id="forgot-confirmed-email"></strong>) — กำหนดรหัสผ่านใหม่ได้เลย</p>
       <input type="password" id="forgot-newpass" placeholder="รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)"
         style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px" autocomplete="new-password">
       <input type="password" id="forgot-newpass2" placeholder="ยืนยันรหัสผ่านใหม่"
         style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box" autocomplete="new-password"
-        onkeydown="if(event.key==='Enter') mfpStep3Next()">
-      <div id="forgot-err3" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
+        onkeydown="if(event.key==='Enter') mfpStep2Next()">
+      <div id="forgot-err2" style="display:none;color:#dc2626;font-size:12px;margin-top:6px"></div>
     </div>
 
-    <!-- STEP 4: สำเร็จ -->
-    <div id="forgot-step4" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px;text-align:center">
+    <!-- STEP 3: สำเร็จ -->
+    <div id="forgot-step3" class="hidden" style="font-size:13px;color:#374151;line-height:1.7;padding:4px 2px;text-align:center">
       <div style="font-size:40px;margin:.25rem 0">✅</div>
       <p style="margin:.25rem 0;font-weight:700;color:#16a34a;font-size:15px">เปลี่ยนรหัสผ่านสำเร็จ</p>
       <p style="margin:0;color:#64748b">สามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที</p>
@@ -7237,8 +7758,7 @@ async function fpStep3Next() {
 </div>
 
 <script>
-/* ── Modal Forgot Password — OTP Flow (เรียก server.js จริง) ── */
-
+/* ── Modal Forgot Password — ยืนยันด้วยอีเมล แล้วเปลี่ยนรหัสผ่านได้ทันที (ไม่มี OTP) ── */
 function openForgotPasswordModal() {
   _mfpReset();
   var m = document.getElementById('modal-forgot');
@@ -7249,21 +7769,21 @@ function mfpClose() {
   if(m) { m.classList.add('hidden'); m.style.display=''; }
 }
 function _mfpReset() {
-  ['forgot-step2','forgot-step3','forgot-step4'].forEach(function(id){
+  ['forgot-step2','forgot-step3'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.classList.add('hidden');
   });
   var s1=document.getElementById('forgot-step1'); if(s1) s1.classList.remove('hidden');
-  ['forgot-err1','forgot-err2','forgot-err3'].forEach(function(id){
+  ['forgot-err1','forgot-err2'].forEach(function(id){
     var e=document.getElementById(id); if(e){e.style.display='none';e.textContent='';}
   });
-  ['forgot-email','forgot-otp','forgot-newpass','forgot-newpass2'].forEach(function(id){
+  ['forgot-email','forgot-newpass','forgot-newpass2'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.value='';
   });
   document.getElementById('forgot-action-btn').textContent = 'ถัดไป';
-  window._mfpUser   = null;
+  window._mfpUser = null;
 }
 function _mfpShowStep(n) {
-  [1,2,3,4].forEach(function(i){
+  [1,2,3].forEach(function(i){
     var e=document.getElementById('forgot-step'+i);
     if(!e) return;
     if(i===n) e.classList.remove('hidden'); else e.classList.add('hidden');
@@ -7271,18 +7791,16 @@ function _mfpShowStep(n) {
   var btn = document.getElementById('forgot-action-btn');
   var cancelBtn = document.getElementById('forgot-cancel-btn');
   if(n===1){ btn.textContent='ถัดไป'; btn.style.display=''; cancelBtn.textContent='ยกเลิก'; }
-  else if(n===2){ btn.textContent='ยืนยัน OTP'; btn.style.display=''; cancelBtn.textContent='ย้อนกลับ'; }
-  else if(n===3){ btn.textContent='บันทึกรหัสผ่าน'; btn.style.display=''; cancelBtn.textContent='ย้อนกลับ'; }
+  else if(n===2){ btn.textContent='บันทึกรหัสผ่าน'; btn.style.display=''; cancelBtn.textContent='ย้อนกลับ'; }
   else { btn.style.display='none'; cancelBtn.textContent='ปิด'; }
 }
 function mfpNext() {
-  var active = [1,2,3,4].find(function(i){
+  var active = [1,2,3].find(function(i){
     var e=document.getElementById('forgot-step'+i);
     return e && !e.classList.contains('hidden');
   });
   if(active===1) mfpStep1Next();
   else if(active===2) mfpStep2Next();
-  else if(active===3) mfpStep3Next();
   else mfpClose();
 }
 async function mfpStep1Next() {
@@ -7295,105 +7813,19 @@ async function mfpStep1Next() {
   if(!match){ e1.textContent='ไม่พบบัญชีที่ผูกกับอีเมลนี้ กรุณาติดต่อทีม IT'; e1.style.display='block'; return; }
   window._mfpUser = match;
 
-  var btn = document.getElementById('forgot-action-btn');
-  btn.disabled=true; btn.textContent='กำลังส่ง...';
-
-  try {
-    var resp = await fetch((window.SRP_API_BASE||'') + '/api/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await resp.json();
-    btn.disabled = false;
-
-    if (!resp.ok || !data.ok) {
-      if (data.error === 'smtp_not_configured') e1.textContent = 'ระบบยังไม่ได้ตั้งค่าการส่งอีเมล กรุณาติดต่อผู้ดูแลระบบ';
-      else e1.textContent = 'ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
-      e1.style.display = 'block';
-      return;
-    }
-
-    document.getElementById('forgot-confirmed-email').textContent = email;
-    _mfpShowStep(2);
-    _mfpResendCountdown();
-    setTimeout(function(){ var oi=document.getElementById('forgot-otp'); if(oi) oi.focus(); }, 100);
-  } catch(err) {
-    btn.disabled = false;
-    e1.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
-    e1.style.display = 'block';
-  }
-}
-function _mfpResendCountdown() {
-  var link=document.getElementById('forgot-resend-link'); if(!link) return;
-  var sec=60;
-  link.style.pointerEvents='none'; link.style.color='#94a3b8';
-  link.textContent='ส่งรหัสใหม่ ('+sec+')';
-  var t=setInterval(function(){
-    sec--;
-    if(sec<=0){ clearInterval(t); link.style.pointerEvents=''; link.style.color=''; link.textContent='ส่งรหัสใหม่'; }
-    else { link.textContent='ส่งรหัสใหม่ ('+sec+')'; }
-  }, 1000);
-}
-async function mfpResend() {
-  var email = ((window._mfpUser||{}).email||'');
-  if(!email) return;
-  try {
-    var resp = await fetch((window.SRP_API_BASE||'') + '/api/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await resp.json();
-    document.getElementById('forgot-otp').value='';
-    _mfpResendCountdown();
-    if (resp.ok && data.ok) {
-      if(typeof toast==='function') toast('📧 ส่ง OTP ใหม่แล้ว กรุณาตรวจสอบอีเมล','ok',4000);
-    } else {
-      if(typeof toast==='function') toast('⚠️ ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่','error',4000);
-    }
-  } catch(err) {
-    if(typeof toast==='function') toast('⚠️ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้','error',4000);
-  }
-}
-async function mfpStep2Next() {
-  var otp = (document.getElementById('forgot-otp').value||'').trim();
-  var e2 = document.getElementById('forgot-err2'); e2.style.display='none'; e2.textContent='';
-  if(!otp||otp.length!==6){ e2.textContent='กรุณากรอกรหัส OTP 6 หลัก'; e2.style.display='block'; return; }
-
-  var email = (document.getElementById('forgot-email').value||'').trim().toLowerCase();
-
-  try {
-    var resp = await fetch((window.SRP_API_BASE||'') + '/api/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, otp: otp })
-    });
-    var data = await resp.json();
-
-    if (!resp.ok || !data.ok) {
-      if (data.error === 'expired') e2.textContent = 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่';
-      else if (data.error === 'mismatch') e2.textContent = 'รหัส OTP ไม่ถูกต้อง';
-      else e2.textContent = 'ไม่พบคำขอ OTP กรุณาขอรหัสใหม่อีกครั้ง';
-      e2.style.display = 'block';
-      return;
-    }
-  } catch(err) {
-    e2.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง';
-    e2.style.display = 'block';
-    return;
-  }
-  _mfpShowStep(3);
+  // ยืนยันว่าเป็นอีเมลตัวเองแล้ว → เด้งไปตั้งรหัสผ่านใหม่ได้เลย (ไม่ส่ง OTP)
+  document.getElementById('forgot-confirmed-email').textContent = email;
+  _mfpShowStep(2);
   setTimeout(function(){ var p=document.getElementById('forgot-newpass'); if(p) p.focus(); }, 100);
 }
-async function mfpStep3Next() {
+async function mfpStep2Next() {
   var p1=document.getElementById('forgot-newpass').value;
   var p2=document.getElementById('forgot-newpass2').value;
-  var e3=document.getElementById('forgot-err3'); e3.style.display='none'; e3.textContent='';
-  if(p1.length<4){ e3.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; e3.style.display='block'; return; }
-  if(p1!==p2){ e3.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน'; e3.style.display='block'; return; }
+  var e2=document.getElementById('forgot-err2'); e2.style.display='none'; e2.textContent='';
+  if(p1.length<4){ e2.textContent='รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'; e2.style.display='block'; return; }
+  if(p1!==p2){ e2.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน'; e2.style.display='block'; return; }
   var u=window._mfpUser;
-  if(!u){ e3.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่'; e3.style.display='block'; return; }
+  if(!u){ e2.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่'; e2.style.display='block'; return; }
   var hashed=await srpHash(p1); u.pass=hashed; u.hashed=true;
   var src=typeof users!=='undefined'?users:(window.users||[]);
   var idx=src.findIndex(function(x){ return x.id===u.id; });
@@ -7401,7 +7833,7 @@ async function mfpStep3Next() {
   window.users=src;
   try{ if(typeof save==='function') save(); else localStorage.setItem('srp_users',JSON.stringify(src)); }catch(e){}
   if(typeof toast==='function') toast('✅ เปลี่ยนรหัสผ่านสำเร็จ','ok',4000);
-  _mfpShowStep(4);
+  _mfpShowStep(3);
 }
 // ── override เก่าที่เรียกผ่านปุ่ม action ── 
 function forgotPasswordNext() { mfpNext(); }
@@ -7864,6 +8296,9 @@ function importDevUsers(input){
     <button id="mob-menu-btn" onclick="toggleMobileNav()" aria-label="เมนู">
       <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
+    <button id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="ซ่อน/แสดงเมนู" title="ซ่อน/แสดงเมนู" style="display:none">
+      <svg id="sidebar-toggle-icon" width="20" height="20" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5" stroke="currentColor" stroke-width="1.8"/><path d="M14 7h5M14 12h5M14 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
     <div onclick="(currentUser&&currentUser.role==='user')?goTo('user-home',null):goTo('dashboard',document.getElementById('nav-dashboard'))" style="cursor:pointer;display:flex;align-items:center;gap:10px" title="กลับหน้าหลัก">
       <img src="https://cdn.phototourl.com/free/2026-06-11-e7bf5d75-33ed-4cdc-97b6-40c63294d481.png" alt="NTEQ Logo" style="height:65px;width:auto;object-fit:contain;display:block">
       <div class="hd-sub" style="font-size:11px;color:var(--text-muted);line-height:1.3">IT Stock &amp; Repair System</div>
@@ -7879,6 +8314,10 @@ function importDevUsers(input){
       <div id="hd-search-dropdown" class="hd-dropdown-panel" style="display:none"></div>
     </div>
     <div class="hd-date" id="hd-date"></div>
+    <button id="theme-toggle-btn" onclick="toggleDarkMode()" title="สลับ Dark / Light Mode" aria-label="สลับธีม">
+      <svg id="theme-icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" stroke="#f59e0b" stroke-width="2.2"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <svg id="theme-icon-moon" width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke="#c7d2fe" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
     <div class="hd-bell" id="hd-bell" onclick="toggleNotifMenu(event)" title="การแจ้งเตือน" style="position:relative">
       <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><path d="M5 8a5 5 0 0110 0c0 3 1 4 1 4H4s1-1 1-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 16a2 2 0 004 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       <span class="hd-bell-badge" id="hd-bell-badge">0</span>
@@ -7944,47 +8383,47 @@ function importDevUsers(input){
 <!-- ═══════════════ LAYOUT ═══════════════ -->
 <div class="layout" id="app-layout" style="display:none">
 <nav><div class="nav-scroll-inner"><div class="nav-sec">
-    <button class="nav-item active" id="nav-dashboard" onclick="goTo('dashboard',this)">
+    <button class="nav-item active" id="nav-dashboard" onclick="goTo('dashboard',this)" data-tip="ภาพรวม">
       <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
       ภาพรวม
     </button>
     </div><!-- /nav-sec -->
     <div class="nav-sec">
     <span class="nav-lbl">การจัดการ</span>
-    <button class="nav-item" id="nav-request" onclick="goTo('request',this)">
+    <button class="nav-item" id="nav-request" onclick="goTo('request',this)" data-tip="เบิกอุปกรณ์ IT">
       <svg viewBox="0 0 20 20" fill="none"><path d="M4 6h12M4 10h12M4 14h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="14" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 14h3M16 12.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       เบิกอุปกรณ์ IT
     </button>
-    <button class="nav-item" id="nav-approve" onclick="goTo('approve',this)">
+    <button class="nav-item" id="nav-approve" onclick="goTo('approve',this)" data-tip="อนุมัติใบเบิก">
       <svg viewBox="0 0 20 20" fill="none"><path d="M5 10l3.5 3.5L15 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.6"/></svg>
       อนุมัติใบเบิก
       <span class="nav-badge hidden" id="pending-badge">0</span>
     </button>
-    <button class="nav-item" id="nav-stock" onclick="goTo('stock',this)">
+    <button class="nav-item" id="nav-stock" onclick="goTo('stock',this)" data-tip="สต๊อก IT">
       <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="10" width="16" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M5 10V6a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       สต๊อก IT
     </button>
-    <button class="nav-item" id="nav-history" onclick="goTo('history',this)">
+    <button class="nav-item" id="nav-history" onclick="goTo('history',this)" data-tip="ประวัติของฉัน">
       <svg viewBox="0 0 20 20" fill="none"><path d="M3 10a7 7 0 1 0 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3 4v6h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 7v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       ประวัติของฉัน
     </button>
     </div><!-- /nav-sec -->
     <div class="nav-sec">
     <span class="nav-lbl">การสนับสนุน</span>
-    <button class="nav-item" id="nav-repair" onclick="goTo('repair',this)">
+    <button class="nav-item" id="nav-repair" onclick="goTo('repair',this)" data-tip="แจ้งซ่อม IT">
       <svg viewBox="0 0 20 20" fill="none"><path d="M14.5 3.5l2 2-9.5 9.5-2.5.5.5-2.5 9.5-9.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 5.5l2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       แจ้งซ่อม IT
       <span class="nav-badge hidden" id="repair-badge">0</span>
     </button>
-    <button class="nav-item" id="nav-devices" onclick="goTo('devices',this)">
+    <button class="nav-item" id="nav-devices" onclick="goTo('devices',this)" data-tip="อุปกรณ์">
       <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       อุปกรณ์
     </button>
-    <button class="nav-item" id="nav-pm" onclick="goTo('pm',this)">
+    <button class="nav-item" id="nav-pm" onclick="goTo('pm',this)" data-tip="แผนบำรุงรักษา">
       <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M3 8h14M7 2v4M13 2v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 12h2M11 12h2M7 15h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       แผนบำรุงรักษา
     </button>
-    <button class="nav-item" id="nav-users" onclick="goTo('users',this)">
+    <button class="nav-item" id="nav-users" onclick="goTo('users',this)" data-tip="จัดการผู้ใช้">
       <svg viewBox="0 0 20 20" fill="none"><circle cx="8" cy="7" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M2 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M14 9l2 2 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       จัดการผู้ใช้
     </button>
@@ -7992,7 +8431,7 @@ function importDevUsers(input){
   </div><!-- /nav-scroll-inner -->
     <!-- Settings Mega Dropdown -->
     <div class="nav-settings-wrap" id="nav-settings-wrap" style="position:relative;flex-shrink:0;">
-      <button class="nav-item nav-settings-btn" id="nav-settings-trigger" onclick="toggleSettingsMenu(event)" style="gap:7px; cursor:pointer !important; z-index:9999 !important;">
+      <button class="nav-item nav-settings-btn" id="nav-settings-trigger" onclick="toggleSettingsMenu(event)" data-tip="ตั้งค่า" style="gap:7px; cursor:pointer !important; z-index:9999 !important;">
         <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         ตั้งค่า
         <svg id="settings-arrow" width="11" height="11" viewBox="0 0 20 20" fill="none" style="transition:transform .2s;opacity:.6"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -8020,9 +8459,9 @@ function importDevUsers(input){
           <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M4 3h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.5"/><path d="M6 7h8M6 10h8M6 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           Activity Report
         </button>
-        <button id="nav-export" onclick="event.stopPropagation();exportExcel();closeSettingsMenu();" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
+        <button id="nav-export" onclick="event.stopPropagation();closeSettingsMenu();setTimeout(()=>openExportMenu(document.getElementById('nav-export')),100);" class="settings-sub-item" style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;color:#374151;text-align:left;" onmouseover="this.style.background='#f0fdf4';this.style.color='#16a34a'" onmouseout="this.style.background='none';this.style.color='#374151'">
           <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M10 3v10M6 9l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-          Export Excel
+          Export ข้อมูล ▾
         </button>
       </div>
     </div>
@@ -8043,9 +8482,10 @@ function importDevUsers(input){
   <div class="page-hd">
     <div><h1>ภาพรวมระบบ IT</h1><p>สรุปสถานะใบเบิกอุปกรณ์และสต๊อก IT</p></div>
     <div class="page-acts">
-      <button class="btn btn-green" id="dash-export" onclick="exportAll()">
+      <button class="btn btn-green" id="dash-export" onclick="openExportMenu(this)">
         <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 3v10M7 10l3 3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Export Excel
+        Export ข้อมูล
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="margin-left:2px"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </div>
@@ -8247,9 +8687,10 @@ function importDevUsers(input){
         <h2 style="margin:0;font-size:1.2rem">รายงาน IT</h2>
       </div>
       <div class="page-acts">
-        <button class="btn btn-green" onclick="exportReport()">
+        <button class="btn btn-green" onclick="openExportMenu(this)">
           <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 3v10M7 10l3 3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Export Excel
+          Export ข้อมูล
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="margin-left:2px"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
     </div>
@@ -8427,9 +8868,10 @@ function importDevUsers(input){
   <div class="page-hd">
     <div><h1>อนุมัติใบเบิก</h1><p>ตรวจสอบและดำเนินการใบเบิกที่รอการอนุมัติ</p></div>
     <div class="page-acts">
-      <button class="btn btn-secondary btn-sm" onclick="exportApprove()">
+      <button class="btn btn-secondary btn-sm" onclick="openExportMenu(this)">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 3v10M7 10l3 3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-left:1px"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </div>
@@ -8460,9 +8902,10 @@ function importDevUsers(input){
         <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         ลบที่เลือก (<span id="bulk-stock-count">0</span>)
       </button>
-      <button class="btn btn-secondary btn-sm" onclick="exportStock()">
+      <button class="btn btn-secondary btn-sm" onclick="openExportMenu(this)">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 3v10M7 10l3 3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-left:1px"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="btn btn-primary btn-sm" id="btn-add-stock" onclick="openAddStock()">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -8503,9 +8946,10 @@ function importDevUsers(input){
   <div class="page-hd">
     <div><h1>ประวัติการเบิก IT ทั้งหมด</h1><p>บันทึกใบเบิกอุปกรณ์ทั้งหมดในระบบ</p></div>
     <div class="page-acts">
-      <button class="btn btn-secondary btn-sm" onclick="exportHistory()">
+      <button class="btn btn-secondary btn-sm" onclick="openExportMenu(this)">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 3v10M7 10l3 3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-left:1px"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
   </div>
@@ -8878,10 +9322,11 @@ function importDevUsers(input){
         <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M14.5 3.5l2 2-9.5 9.5-2.5.5.5-2.5 9.5-9.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         แจ้งซ่อมใหม่
       </button>
-      <button class="btn btn-secondary btn-sm" onclick="exportRepair()">
+      <button class="btn btn-secondary btn-sm" onclick="openExportMenu(this)">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 3v10M7 10l3 3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export
-      </button>
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-left:1px"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>      </button>
     </div>
   </div>
   <div class="metrics" style="grid-template-columns:repeat(4,1fr)" id="repair-metrics"></div>
@@ -11895,19 +12340,43 @@ if (typeof _origGoTo === 'function') {
         </div>
 
         <!-- B: ผู้อนุมัติแจ้งซ่อม -->
-        <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff">
+        <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff" id="redit-sec-b">
           <div style="background:#4b5563;padding:8px 14px;display:flex;align-items:center;gap:8px">
             <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><path d="M5 10l3.5 3.5L15 7" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="8" stroke="#fff" stroke-width="1.4"/></svg>
             <span style="font-size:13px;font-weight:700;color:#fff">ผู้อนุมัติแจ้งซ่อม</span>
           </div>
           <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
             <div style="display:grid;grid-template-columns:130px 1fr;gap:6px;align-items:center">
+              <label style="font-size:12px;color:#6b7280">หน่วยงาน / แผนก</label>
+              <div style="position:relative">
+                <select id="redit-approve-dept" onchange="onApproveDeptChange(this.value)"
+                  style="width:100%;padding:6px 28px 6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;background:#fff;appearance:none;font-family:'Sarabun',sans-serif;outline:none"
+                  onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'">
+                  <option value="">-- เลือกหน่วยงาน --</option>
+                </select>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none"><path d="M5 8l5 5 5-5" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:6px;align-items:center">
               <label style="font-size:12px;color:#6b7280">วันที่อนุมัติแจ้งซ่อม</label>
-              <span id="redit-approve-date" style="font-size:13px;color:#1e293b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px"></span>
+              <input type="date" id="redit-approve-date"
+                style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:'Sarabun',sans-serif;outline:none"
+                onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'">
             </div>
             <div style="display:grid;grid-template-columns:130px 1fr;gap:6px;align-items:center">
               <label style="font-size:12px;color:#6b7280">ผู้อนุมัติแจ้งซ่อม</label>
-              <span id="redit-approver" style="font-size:13px;color:#1e293b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px"></span>
+              <div style="position:relative">
+                <select id="redit-approver"
+                  style="width:100%;padding:6px 28px 6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;background:#fff;appearance:none;font-family:'Sarabun',sans-serif;outline:none"
+                  onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#d1d5db'">
+                  <option value="">-- เลือกหน่วยงานก่อน --</option>
+                </select>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none"><path d="M5 8l5 5 5-5" stroke="#9ca3af" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div id="redit-approver-email-wrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:6px 10px">
+              <span style="font-size:11px;color:#0369a1">📧 </span>
+              <span id="redit-approver-email" style="font-size:12px;color:#0369a1"></span>
             </div>
           </div>
         </div>
