@@ -21,6 +21,37 @@
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
 <!-- ╔══════════════════════════════════════════════════════════════════╗
+     ║  SRP AUTH TOKEN STORE — ไม่ใช้ cookie ในระบบนี้แล้ว              ║
+     ║  เก็บ session token ใน JS variable (memory) เท่านั้น —          ║
+     ║  ไม่เขียนลง localStorage/sessionStorage/cookie ที่ใดเลย          ║
+     ║  ข้อแลกเปลี่ยน: refresh หน้าเว็บ = token หาย ต้อง login ใหม่      ║
+     ║  ทุกครั้ง แต่ปลอดภัยกว่า เพราะ token ไม่ตกค้างอยู่ที่ไหนให้        ║
+     ║  XSS หรือใครก็ตามที่เข้าถึงเครื่อง อ่านได้นอกช่วงเวลาที่ tab       ║
+     ║  ยังเปิดอยู่จริง                                                  ║
+     ╚══════════════════════════════════════════════════════════════════╝ -->
+<script>
+window.SrpAuth = (function () {
+  let _token = null; // อยู่ใน closure ของ IIFE นี้เท่านั้น — เข้าถึงได้ผ่าน get/set/clear
+
+  function getToken()        { return _token; }
+  function setToken(t)       { _token = t || null; }
+  function clearToken()      { _token = null; }
+
+  // ── fetch() ที่แนบ "Authorization: Bearer <token>" ให้อัตโนมัติ ──────────
+  // ใช้แทน fetch ตรงๆ ทุกจุดที่เคยมี credentials:'include' (cookie) เดิม
+  function authFetch(url, options) {
+    options = options || {};
+    const headers = Object.assign({}, options.headers || {});
+    if (_token) headers['Authorization'] = 'Bearer ' + _token;
+    return fetch(url, Object.assign({}, options, { headers }));
+    // หมายเหตุ: ไม่ใส่ credentials:'include' แล้ว เพราะไม่มี cookie ให้ส่ง
+  }
+
+  return { getToken, setToken, clearToken, authFetch };
+})();
+</script>
+
+<!-- ╔══════════════════════════════════════════════════════════════════╗
      ║  SRP SECURITY — Password Hashing, Session Timeout, Loading UI  ║
      ╚══════════════════════════════════════════════════════════════════╝ -->
 <script>
@@ -186,7 +217,13 @@ setInterval(() => { if (window.currentUser) srpVerifyRole(); }, 15000);
 
 /* ── Config ──────────────────────────────────────────────────────────────── */
 const _proto            = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const _wsURL            = _proto + '//' + location.host + '/';
+// ── ฟังก์ชันสร้าง URL ใหม่ทุกครั้งที่ connect เพราะต้องแนบ token ปัจจุบัน
+//    ผ่าน query string (browser WebSocket API ไม่รองรับ custom header
+//    ดังนั้นจะใช้ Authorization header แบบ fetch ไม่ได้ ต้องส่งผ่าน URL แทน) ──
+function _wsURL() {
+  const token = (window.SrpAuth && SrpAuth.getToken()) || '';
+  return _proto + '//' + location.host + '/?token=' + encodeURIComponent(token);
+}
 const RECONNECT_DELAY   = 3000;
 const POLL_INTERVAL     = 30000;
 const ROLES_CAN_PUSH    = ['admin', 'user'];
@@ -238,11 +275,10 @@ function _send(partial) {
   if (_wsOk && _ws && _ws.readyState === WebSocket.OPEN) {
     _ws.send(JSON.stringify({ type:'push', clientRole: role, payload: payload }));
   } else {
-    fetch('/api/push', {
-      method:      'POST',
-      headers:     { 'Content-Type': 'application/json' },
-      credentials: 'include', // ── ต้องส่ง session cookie ไปด้วย ไม่งั้น server ตอบ 401 ──
-      body:        JSON.stringify({ clientRole: role, payload: payload }),
+    SrpAuth.authFetch('/api/push', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' }, // ── ต้องแนบ Authorization header ไปด้วย ไม่งั้น server ตอบ 401 (จัดการให้อัตโนมัติใน authFetch) ──
+      body:    JSON.stringify({ clientRole: role, payload: payload }),
     }).catch(() => {});
   }
 }
@@ -252,7 +288,7 @@ function _connect() {
   if (_ws) { try { _ws.close(); } catch(e) {} }
   // ── BUGFIX: reset _initReceived ทุกครั้งที่ reconnect เพื่อรับ snapshot ใหม่ ──
   _initReceived = false;
-  try { _ws = new WebSocket(_wsURL); }
+  try { _ws = new WebSocket(_wsURL()); }
   catch(e) { _startPolling(); return; }
 
   _ws.onopen = function() {
@@ -296,7 +332,7 @@ function _storeIsEmpty(s) {
 /* ── Push ข้อมูลจาก localStorage กลับขึ้น server (กรณี server restart) ─── */
 function _checkAndRestoreServer() {
   // ดึงจาก /api/store ก่อนเพื่อเช็คสถานะล่าสุด
-  fetch('/api/store', { credentials: 'include' }).then(r => r.json()).then(function(s) {
+  SrpAuth.authFetch('/api/store').then(r => r.json()).then(function(s) {
     if (!_storeIsEmpty(s)) return; // server มีข้อมูลแล้ว ไม่ต้อง restore
 
     // restore เต็ม snapshot ทำได้เฉพาะ admin เท่านั้น
@@ -337,7 +373,7 @@ function _buildPayloadFromLocalStorage() {
 /* ── REST polling fallback ───────────────────────────────────────────────── */
 function _startPolling() {
   _pollTimer = setInterval(function() {
-    fetch('/api/store', { credentials: 'include' }).then(r => r.json()).then(_applyServerStore).catch(() => {});
+    SrpAuth.authFetch('/api/store').then(r => r.json()).then(_applyServerStore).catch(() => {});
   }, POLL_INTERVAL);
 }
 
@@ -1513,6 +1549,24 @@ function _storeIsEmptyLocal(s) {
   if (!s) return true;
   return !s.requests && !s.stock && !s.repairs && !s.users;
 }
+/* ── Remember Me — บันทึก/โหลดเฉพาะ "username" ใน localStorage ──────────
+   หมายเหตุความปลอดภัย: เดิมเคยเก็บรหัสผ่านดิบ (plaintext) ไว้ด้วย ทำให้
+   ใครก็ตามที่อ่าน localStorage ได้ (extension ที่ติดมัลแวร์, คนใช้เครื่อง
+   ร่วม, หรือช่องโหว่ XSS จุดอื่นในหน้านี้) ได้รหัสผ่านจริงไปเลยทันที —
+   เปลี่ยนเป็นเก็บแค่ username เพื่อให้ผู้ใช้ไม่ต้องพิมพ์ชื่อซ้ำ แต่ยังต้อง
+   กรอกรหัสผ่านเองทุกครั้ง ── */
+(function _initRememberMe() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('srp_remember') || 'null');
+    if (saved && saved.u) {
+      var uEl = document.getElementById('l-user');
+      var rEl = document.getElementById('l-remember');
+      if (uEl) uEl.value = saved.u;
+      if (rEl) rEl.checked = true;
+    }
+  } catch(e) {}
+})();
+
 async function doLogin() {
   load();
 
@@ -1531,15 +1585,15 @@ async function doLogin() {
 
   // ── login จริงอยู่ฝั่ง server ───────────────────────────────────────────
   // (เดิม: ดึง users ทั้งหมดมาเทียบ hash ฝั่ง client — เปลี่ยนเป็น POST
-  //  /api/login ให้ server เป็นคนเทียบรหัสผ่าน แล้วออก session cookie กลับมา
-  //  client ไม่เห็น password hash ของใครเลยอีกต่อไป)
+  //  /api/login ให้ server เป็นคนเทียบรหัสผ่าน แล้วส่ง session token กลับมา
+  //  ใน JSON body (ไม่ใช้ cookie แล้ว) — client เก็บ token ไว้ใน memory
+  //  ผ่าน SrpAuth เท่านั้น ไม่เห็นรหัสผ่าน hash ของใครเลยอีกต่อไป)
   let loginResult;
   try {
     const r = await fetch('/api/login', {
-      method:      'POST',
-      headers:     { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body:        JSON.stringify({ username: uname, password: rawPass }),
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username: uname, password: rawPass }),
     });
     loginResult = await r.json();
     if (!r.ok) {
@@ -1562,6 +1616,9 @@ async function doLogin() {
     return;
   }
 
+  // ── เก็บ token ไว้ใน memory ผ่าน SrpAuth — ไม่เขียนลง localStorage/cookie ──
+  SrpAuth.setToken(loginResult.token);
+
   const u = loginResult.user; // ไม่มี field pass/hashed ติดมาด้วยแล้ว เพราะ server ตัดออกให้
 
   srpHideLoading();
@@ -1574,16 +1631,17 @@ async function doLogin() {
   if (isUserUrl && isAdmin) {
     // ── หมายเหตุ: session ถูกสร้างไปแล้วฝั่ง server ตอนนี้ ต้อง logout
     // เพื่อไม่ให้ session ค้างอยู่เฉยๆทั้งที่ UI ยังอยู่หน้า login ──
-    try { await fetch('/api/logout', { method: 'POST', credentials: 'include' }); } catch (e) {}
+    try { await SrpAuth.authFetch('/api/logout', { method: 'POST' }); } catch (e) {}
+    SrpAuth.clearToken();
     err.textContent = '⚠️ URL นี้สำหรับผู้ใช้งานทั่วไปเท่านั้น';
     err.style.display = 'block';
     setTimeout(() => { err.style.display = 'none'; }, 3000);
     return;
   }
 
-  // ── ดึงข้อมูลล่าสุดจาก server (ตอนนี้มี session แล้ว ไม่โดน 401) ──────
+  // ── ดึงข้อมูลล่าสุดจาก server (ตอนนี้มี token แล้ว ไม่โดน 401) ──────
   try {
-    const r2 = await fetch('/api/store', { credentials: 'include' });
+    const r2 = await SrpAuth.authFetch('/api/store');
     if (r2.ok) {
       const s = await r2.json();
       if (s && !_storeIsEmptyLocal(s)) {
@@ -1595,6 +1653,16 @@ async function doLogin() {
       }
     }
   } catch (e) { /* ออฟไลน์หรือ server ไม่ตอบ → ใช้ข้อมูลใน localStorage ต่อไป */ }
+
+  // ── บันทึก/ลบ remember-me — เก็บแค่ username ไม่เก็บรหัสผ่านดิบอีกต่อไป ──
+  try {
+    var rememberEl = document.getElementById('l-remember');
+    if (rememberEl && rememberEl.checked) {
+      localStorage.setItem('srp_remember', JSON.stringify({ u: uname }));
+    } else {
+      localStorage.removeItem('srp_remember');
+    }
+  } catch(e) {}
 
   currentUser = u;
   window.currentUser = u;
@@ -1695,11 +1763,10 @@ async function _submitForceChangePassword() {
   //  อัปเดต record ของ "ตัวเอง" เท่านั้น โดยอ้างจาก session ไม่ใช่จาก users[]
   //  ที่ client ส่งมา)
   try {
-    const r = await fetch('/api/change-password', {
-      method:      'POST',
-      headers:     { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body:        JSON.stringify({ newPassword: newPass }),
+    const r = await SrpAuth.authFetch('/api/change-password', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ newPassword: newPass }),
     });
     if (!r.ok) {
       const errBody = await r.json().catch(() => ({}));
@@ -1792,10 +1859,9 @@ async function _submitChangePassword() {
   if (newP !== confirm)  { showErr('รหัสผ่านทั้งสองช่องไม่ตรงกัน'); return; }
 
   try {
-    const r = await fetch('/api/change-password', {
+    const r = await SrpAuth.authFetch('/api/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ currentPassword: cur, newPassword: newP }),
     });
     const body = await r.json().catch(() => ({}));
@@ -2065,7 +2131,8 @@ function doLogout(forced) {
   window.currentUser = null;
   // ── แจ้ง server ให้ทำลาย session ด้วย ไม่ใช่แค่เคลียร์ฝั่ง client ──
   // (ไม่ await เพราะไม่ต้องการให้ UI รอ — ทำ best-effort)
-  try { fetch('/api/logout', { method: 'POST', credentials: 'include' }).catch(() => {}); } catch (e) {}
+  try { SrpAuth.authFetch('/api/logout', { method: 'POST' }).catch(() => {}); } catch (e) {}
+  SrpAuth.clearToken(); // ── เคลียร์ token จาก memory — ออกจากระบบจริง ──
   document.getElementById('screen-login').classList.remove('hidden');
   document.getElementById('app-header').style.display = 'none';
   document.getElementById('app-layout').style.display = 'none';
@@ -8042,6 +8109,10 @@ body.dark-mode [style*="background: rgb(0"]  { background: #1c2333 !important; }
     <div id="login-err" class="err-msg" style="display:none">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
     <div class="fld"><label>ชื่อผู้ใช้ (Username)</label><input id="l-user" type="text" placeholder="username" autocomplete="username"></div>
     <div class="fld"><label>รหัสผ่าน</label><input id="l-pass" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div style="display:flex;align-items:center;margin-bottom:14px;gap:8px">
+      <input type="checkbox" id="l-remember" style="width:16px;height:16px;accent-color:var(--accent,#00e87a);cursor:pointer;flex-shrink:0">
+      <label for="l-remember" style="font-size:13px;color:#94a3b8;cursor:pointer;user-select:none;margin:0">จำรหัสผ่านไว้ในเครื่องนี้</label>
+    </div>
     <button class="big-btn" id="login-main-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
     <div id="login-register-wrap" style="text-align:center;margin-top:.5rem;display:none">
       <a href="#" style="font-size:13px;color:var(--accent);text-decoration:none" onclick="openRegisterModal();return false;">ลงทะเบียนเข้าใช้งานระบบ</a>
@@ -13482,10 +13553,9 @@ async function submitRegister() {
   let registerOk = false;
   try {
     const r = await fetch('/api/register', {
-      method:      'POST',
-      headers:     { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body:        JSON.stringify({ username, name, dept, position, emp, password: pass }),
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username, name, dept, position, emp, password: pass }),
     });
     const body = await r.json().catch(() => ({}));
     if (r.ok) {
