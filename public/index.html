@@ -20,15 +20,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-<!-- ╔══════════════════════════════════════════════════════════════════╗
-     ║  SRP AUTH TOKEN STORE — ไม่ใช้ cookie ในระบบนี้แล้ว              ║
-     ║  เก็บ session token ใน JS variable (memory) เท่านั้น —          ║
-     ║  ไม่เขียนลง localStorage/sessionStorage/cookie ที่ใดเลย          ║
-     ║  ข้อแลกเปลี่ยน: refresh หน้าเว็บ = token หาย ต้อง login ใหม่      ║
-     ║  ทุกครั้ง แต่ปลอดภัยกว่า เพราะ token ไม่ตกค้างอยู่ที่ไหนให้        ║
-     ║  XSS หรือใครก็ตามที่เข้าถึงเครื่อง อ่านได้นอกช่วงเวลาที่ tab       ║
-     ║  ยังเปิดอยู่จริง                                                  ║
-     ╚══════════════════════════════════════════════════════════════════╝ -->
 <script>
 window.SrpAuth = (function () {
   let _token = null; // อยู่ใน closure ของ IIFE นี้เท่านั้น — เข้าถึงได้ผ่าน get/set/clear
