@@ -30,14 +30,11 @@ const path        = require('path');
 const crypto      = require('crypto');
 const { WebSocketServer } = require('ws');
 
-const PORT          = process.env.PORT || 3000;
-const DATA_FILE     = path.join(__dirname, 'srp_data.json');
-const DATA_FILE_TMP = DATA_FILE + '.tmp';
-const INDEX_FILE    = path.join(__dirname, 'index.html');
-const IS_HTTPS      = process.env.FORCE_HTTPS_COOKIE === '1';
-const TRUST_PROXY   = process.env.TRUST_PROXY === '1';
-// CORS: ระบุ origin จริง ไม่ใช้ * เพราะใช้ credentials (httpOnly cookie)
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || `http://localhost:${process.env.PORT || 3000}`;
+const PORT        = process.env.PORT || 3000;
+const DATA_FILE   = path.join(__dirname, 'srp_data.json');
+const INDEX_FILE  = path.join(__dirname, 'index.html');
+const IS_HTTPS    = process.env.FORCE_HTTPS_COOKIE === '1'; // ตั้งเป็น '1' เมื่อรันหลัง HTTPS/reverse-proxy จริง
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';        // ตั้งเป็น '1' เมื่อรันหลัง reverse proxy ที่เชื่อถือได้เท่านั้น
 
 const SESSION_TTL_MS      = 30 * 60 * 1000; // 30 นาที ตรงกับ session timeout ฝั่ง frontend
 const LOGIN_MAX_ATTEMPTS  = 5;
@@ -62,63 +59,16 @@ function loadStore() {
 
 function saveStore() {
   try {
-    // atomic write: เขียน tmp ก่อน แล้ว rename (rename เป็น atomic บน Linux/macOS)
-    fs.writeFileSync(DATA_FILE_TMP, JSON.stringify(store), 'utf8');
-    fs.renameSync(DATA_FILE_TMP, DATA_FILE);
+    fs.writeFileSync(DATA_FILE, JSON.stringify(store), 'utf8');
   } catch (e) {
     console.warn('[Store] Failed to save to disk:', e.message);
-    try { fs.unlinkSync(DATA_FILE_TMP); } catch {}
   }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
    Session store — in-memory.  token -> { userId, role, username, expiresAt }
    ════════════════════════════════════════════════════════════════════════ */
-const sessions   = new Map();
-const auditLog   = [];          // server-side audit log (in-memory, flush ทุก save)
-const LOG_FILE   = path.join(__dirname, 'srp_audit.log');
-const MAX_AUDIT  = 2000;        // เก็บ max 2000 บรรทัดล่าสุด
-
-function serverLog(action, username, detail) {
-  const entry = `${new Date().toISOString()} | ${action.padEnd(25)} | ${(username||'').padEnd(20)} | ${detail||''}`;
-  console.log('[AUDIT]', entry);
-  auditLog.push(entry);
-  if (auditLog.length > MAX_AUDIT) auditLog.shift();
-  // flush to file (append)
-  try { fs.appendFileSync(LOG_FILE, entry + '\n', 'utf8'); } catch {}
-}
-
-const SESSION_FILE = path.join(__dirname, 'srp_sessions.json');
-
-function saveSessions() {
-  try {
-    const out = {};
-    for (const [token, s] of sessions.entries()) {
-      if (Date.now() < s.expiresAt) out[token] = s; // เก็บเฉพาะที่ยังไม่หมดอายุ
-    }
-    fs.writeFileSync(SESSION_FILE + '.tmp', JSON.stringify(out), 'utf8');
-    fs.renameSync(SESSION_FILE + '.tmp', SESSION_FILE);
-  } catch {}
-}
-
-function loadSessions() {
-  try {
-    if (!fs.existsSync(SESSION_FILE)) return;
-    const raw = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
-    const now = Date.now();
-    for (const [token, s] of Object.entries(raw)) {
-      if (now < s.expiresAt) sessions.set(token, s);
-    }
-    console.log('[Sessions] Restored', sessions.size, 'active sessions from disk');
-  } catch (e) {
-    console.warn('[Sessions] Could not load sessions:', e.message);
-  }
-}
-
-// save sessions ทุก 2 นาทีและตอน process ปิด
-setInterval(saveSessions, 2 * 60 * 1000);
-process.on('SIGTERM', () => { saveSessions(); process.exit(0); });
-process.on('SIGINT',  () => { saveSessions(); process.exit(0); });
+const sessions = new Map();
 
 function createSession(user) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -283,10 +233,11 @@ function findUserById(id) {
 }
 
 // ตัด field ที่เกี่ยวกับรหัสผ่านออกก่อนส่งให้ client เสมอ ไม่ว่า request จากใคร
+// หมายเหตุ: mustChangePass ยังคงไว้เพื่อให้ client แสดง dialog บังคับเปลี่ยนรหัสผ่านครั้งแรก
 function sanitizeUsersForClient(users) {
   if (!Array.isArray(users)) return users;
   return users.map(u => {
-    const { pass, hashed, mustChangePass, ...rest } = u;
+    const { pass, hashed, ...rest } = u;
     return rest;
   });
 }
@@ -312,18 +263,6 @@ function filterUserPayload(payload) {
     if (payload.counters.req    !== undefined) c.req    = payload.counters.req;
     if (Object.keys(c).length) safe.counters = c;
   }
-  return Object.keys(safe).length ? safe : null;
-}
-
-// manager อนุมัติได้ + แก้ stock + แก้ devices ได้ แต่ไม่แตะ users
-function filterManagerPayload(payload) {
-  if (!payload) return null;
-  const safe = {};
-  const managerKeys = ['repairs','requests','stock','devices','settings','repairSettings','counters'];
-  for (const k of managerKeys) {
-    if (payload[k] !== undefined) safe[k] = payload[k];
-  }
-  // ห้าม manager แก้ users array โดยตรง
   return Object.keys(safe).length ? safe : null;
 }
 
@@ -366,8 +305,7 @@ function resolveSessionAndUser(req) {
 function sendJSON(res, status, obj, extraHeaders) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Origin': '*', // ดู NOTE ท้ายไฟล์เรื่อง CORS + cookie
     ...(extraHeaders || {}),
   });
   res.end(JSON.stringify(obj));
@@ -400,7 +338,7 @@ const server = http.createServer(async (req, res) => {
   /* ── CORS preflight ── */
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Credentials': 'true',
@@ -422,19 +360,15 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 400, { error: 'username and password required' });
     }
 
-    const user = findUserByUsername(username);
-
-    // ── admin ไม่มีการล็อคบัญชี ใส่รหัสผิดได้ไม่จำกัดครั้ง ──────────────
-    const _isAdminRole = user && user.role === 'admin';
-    if (!_isAdminRole) {
-      const rl = checkRateLimit(username, ip);
-      if (rl.blocked) {
-        return sendJSON(res, 429, {
-          error: 'locked',
-          remainingMs: rl.remainingMs,
-        });
-      }
+    const rl = checkRateLimit(username, ip);
+    if (rl.blocked) {
+      return sendJSON(res, 429, {
+        error: 'locked',
+        remainingMs: rl.remainingMs,
+      });
     }
+
+    const user = findUserByUsername(username);
     const candidateHash = sha256(password);
 
     // เทียบแบบ constant-time ไม่ได้สำคัญมากที่นี่เพราะ comparison เป็น hash
@@ -445,7 +379,7 @@ const server = http.createServer(async (req, res) => {
     );
 
     if (!matches) {
-      if (!_isAdminRole) recordLoginFailure(username, ip); // admin ไม่นับ fail
+      recordLoginFailure(username, ip);
       return sendJSON(res, 401, { error: 'invalid credentials' });
     }
 
@@ -460,17 +394,16 @@ const server = http.createServer(async (req, res) => {
 
     const token = createSession(user);
     setSessionCookie(res, token);
-    serverLog('LOGIN', user.username, `from ${ip}`);
 
     const { pass, hashed, ...safeUser } = user;
+    // ส่ง mustChangePass กลับไปให้ client แสดง dialog เปลี่ยนรหัสผ่านครั้งแรก
+    // (field อื่นๆที่เกี่ยวกับ password ยังคงถูกตัดออกเหมือนเดิม)
     return sendJSON(res, 200, { ok: true, user: safeUser });
   }
 
   /* ── POST /api/logout ── */
   if (req.method === 'POST' && url === '/api/logout') {
     const cookies = parseCookies(req);
-    const sess = sessions.get(cookies.srp_session);
-    if (sess) serverLog('LOGOUT', sess.username, '');
     destroySession(cookies.srp_session);
     clearSessionCookie(res);
     return sendJSON(res, 200, { ok: true });
@@ -505,7 +438,7 @@ const server = http.createServer(async (req, res) => {
     if (!username || /\s/.test(username)) return sendJSON(res, 400, { error: 'invalid username' });
     if (!name) return sendJSON(res, 400, { error: 'name required' });
     if (!dept) return sendJSON(res, 400, { error: 'dept required' });
-    if (password.length < 4) return sendJSON(res, 400, { error: 'password too short' });
+    if (password.length < 1) return sendJSON(res, 400, { error: 'password too short' });
 
     recordRegisterAttempt(ip);
 
@@ -551,60 +484,18 @@ const server = http.createServer(async (req, res) => {
     try { body = await readJSONBody(req); }
     catch (e) { return sendJSON(res, 400, { error: 'invalid body' }); }
 
-    const currentPassword = String(body.currentPassword || '');
-    const newPassword     = String(body.newPassword     || '');
+    const newPassword = String(body.newPassword || '');
+    if (newPassword.length < 4) return sendJSON(res, 400, { error: 'password must be at least 4 characters' });
 
-    if (newPassword.length < 8) return sendJSON(res, 400, { error: 'password must be at least 8 characters' });
-    if (!/[0-9]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword)) {
-      return sendJSON(res, 400, { error: 'password must include upper, lower case and a number' });
-    }
-
-    const user = findUserById(resolved.user.id);
+    const user = findUserById(resolved.user.id); // อ้างจาก session เท่านั้น ไม่รับ id จาก body
     if (!user) return sendJSON(res, 404, { error: 'user not found' });
-
-    // ตรวจรหัสผ่านปัจจุบัน (ยกเว้น mustChangePass เพราะยังไม่รู้รหัสเดิม)
-    if (currentPassword && !user.mustChangePass) {
-      const curHash = sha256(currentPassword);
-      if (!safeCompare(user.pass, curHash)) {
-        return sendJSON(res, 400, { error: 'current password incorrect' });
-      }
-    }
 
     user.pass = sha256(newPassword);
     user.hashed = true;
     user.mustChangePass = false;
     saveStore();
-    serverLog('CHANGE_PASSWORD', resolved.user.username, 'changed own password');
     broadcast({ type: 'update', payload: { users: sanitizeUsersForClient(store.users) } }, null);
-
-    return sendJSON(res, 200, { ok: true });
-  }
-
-  /* ── POST /api/admin/reset-password — admin รีเซ็ตรหัสผ่าน user คนอื่น ── */
-  if (req.method === 'POST' && url === '/api/admin/reset-password') {
-    const resolved = resolveSessionAndUser(req);
-    if (!resolved) return sendJSON(res, 401, { error: 'not authenticated' });
-    if (resolved.role !== 'admin') return sendJSON(res, 403, { error: 'admin only' });
-
-    let body;
-    try { body = await readJSONBody(req); }
-    catch (e) { return sendJSON(res, 400, { error: 'invalid body' }); }
-
-    const targetUsername = String(body.username || '').trim().toLowerCase();
-    const newPassword    = String(body.newPassword || '');
-
-    if (!targetUsername) return sendJSON(res, 400, { error: 'username required' });
-    if (newPassword.length < 4) return sendJSON(res, 400, { error: 'password too short' });
-
-    const target = findUserByUsername(targetUsername);
-    if (!target) return sendJSON(res, 404, { error: 'user not found' });
-
-    target.pass = sha256(newPassword);
-    target.hashed = true;
-    target.mustChangePass = (newPassword === '1234'); // ถ้า reset เป็น 1234 บังคับเปลี่ยนใหม่
-    saveStore();
-    serverLog('ADMIN_RESET_PASSWORD', resolved.user.username, `reset password for ${targetUsername}`);
-    broadcast({ type: 'update', payload: { users: sanitizeUsersForClient(store.users) } }, null);
+    console.log('[ChangePassword]', user.username, 'updated their own password');
 
     return sendJSON(res, 200, { ok: true });
   }
@@ -631,9 +522,7 @@ const server = http.createServer(async (req, res) => {
 
     const { payload } = body;
     if (payload) {
-      const safePayload = resolved.role === 'admin'   ? payload :
-                          resolved.role === 'manager' ? filterManagerPayload(payload) :
-                          filterUserPayload(payload);
+      const safePayload = resolved.role === 'admin' ? payload : filterUserPayload(payload);
       if (safePayload) {
         mergeStore(safePayload);
         broadcast({ type: 'update', payload: sanitizeBroadcastPayload(safePayload) }, null);
@@ -716,9 +605,7 @@ wss.on('connection', (ws, req, resolved) => {
       if (!conn) return;
       const { payload } = msg;
       if (payload) {
-        const safePayload = conn.role === 'admin'   ? payload :
-                            conn.role === 'manager' ? filterManagerPayload(payload) :
-                            filterUserPayload(payload);
+        const safePayload = conn.role === 'admin' ? payload : filterUserPayload(payload);
         if (safePayload) {
           mergeStore(safePayload);
           console.log('[WS] Push from', conn.username, `(${conn.role})`, '→ broadcast, keys:', Object.keys(safePayload).join(', '));
@@ -737,7 +624,6 @@ wss.on('connection', (ws, req, resolved) => {
 });
 
 loadStore();
-loadSessions();
 server.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('╔══════════════════════════════════════════════╗');
